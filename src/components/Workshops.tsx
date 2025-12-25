@@ -1,47 +1,16 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calendar, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-
-const workshops = [
-  {
-    title: "AR/VR MEETUP",
-    description: "Augmented Reality Education for Engineering Labs - Introducing AR/VR to SSE Engineering Curriculum",
-    date: "January 22-23, 2023",
-    location: "New Cairo, Egypt",
-    type: "International Conference",
-  },
-  {
-    title: "Immersive Technologies: AR/VR Foundations",
-    description: "Special Topics course covering AR/VR fundamentals for engineering students",
-    date: "Fall 2025",
-    location: "Al Akhawayn University",
-    type: "Special Topics Course",
-    schedule: "Tuesday 7:30 PM - 8:50 PM",
-  },
-  {
-    title: "3D Scanning & Reverse Engineering Workshop",
-    description: "From Reality to Virtual Intelligence: 3D Scanning, Reverse Engineering, AR/VR, and AI Integration by ENGIMA Experts",
-    date: "TBA 2025",
-    location: "SSE, Al Akhawayn University",
-    type: "Industry Workshop",
-  },
-  {
-    title: "Invisible Festival Brussels",
-    description: "EMSI Casablanca students represented Morocco with a pioneering project merging AI, history, and immersive technology",
-    date: "April 5, 2025",
-    location: "Brussels, Belgium",
-    type: "Student Showcase",
-  },
-  {
-    title: "Mixed Reality MATLAB Workshop",
-    description: "Hands-on training for Mixed Reality Object Placement for Factory Layout using MATLAB",
-    date: "Academic Year 2025-2026",
-    location: "Engineering Lab, AUI",
-    type: "Technical Workshop",
-  },
-];
+import { dataService, Event } from "@/lib/dataService";
 
 const Workshops = () => {
+  const [workshops, setWorkshops] = useState<Event[]>([]);
+
+  useEffect(() => {
+    setWorkshops(dataService.getEvents());
+  }, []);
+
   return (
     <section id="workshops" className="py-20 bg-background">
       <div className="container mx-auto px-4">
@@ -53,8 +22,8 @@ const Workshops = () => {
         </div>
 
         <div className="max-w-4xl mx-auto space-y-6">
-          {workshops.map((workshop, index) => (
-            <Card key={index} className="hover:shadow-lg transition-shadow">
+          {workshops.map((workshop) => (
+            <Card key={workshop.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="flex-1">
@@ -92,3 +61,4 @@ const Workshops = () => {
 };
 
 export default Workshops;
+

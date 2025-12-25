@@ -1,23 +1,15 @@
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-
-const teamMembers = [
-  { name: "Dr. Hassan Darhmaoui", role: "Project Initiator" },
-  { name: "Rachid Lghoul", role: "Project Manager / Coordinator" },
-  { name: "Dr. Amine Abouaomar", role: "Research Supervisor" },
-  { name: "Dr. Paul Love", role: "Collaborator" },
-  { name: "Dr. Said Ennahid", role: "Collaborator" },
-  { name: "Ms. Hannen Duprat", role: "Collaborator" },
-  { name: "Samir Hajjaji", role: "Collaborator" },
-  { name: "Karim Moustagfir", role: "Collaborator" },
-];
-
-const externalCollaborators = [
-  { name: "Houssam Octave", role: "External Partner" },
-  { name: "Aloui Mountasir", role: "External Partner" },
-  { name: "Omar Diouri", role: "External Partner" },
-  { name: "Yassin EMSI", role: "External Partner" },
-];
+import { dataService, Person } from "@/lib/dataService";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Mail, Phone, User } from "lucide-react";
 
 const getInitials = (name: string) => {
   return name
@@ -29,6 +21,16 @@ const getInitials = (name: string) => {
 };
 
 const Collaborators = () => {
+  const [people, setPeople] = useState<Person[]>([]);
+  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
+
+  useEffect(() => {
+    setPeople(dataService.getPeople());
+  }, []);
+
+  const coreTeam = people.filter((p) => p.type === "core");
+  const externalCollaborators = people.filter((p) => p.type === "external");
+
   return (
     <section id="collaborators" className="py-20 bg-muted/30">
       <div className="container mx-auto px-4">
@@ -46,8 +48,12 @@ const Collaborators = () => {
             </CardHeader>
             <CardContent>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {teamMembers.map((member, index) => (
-                  <div key={index} className="flex items-center gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors">
+                {coreTeam.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center gap-4 p-4 rounded-lg hover:bg-muted font-normal cursor-pointer transition-colors"
+                    onClick={() => setSelectedPerson(member)}
+                  >
                     <Avatar className="h-12 w-12">
                       <AvatarFallback className="bg-primary text-primary-foreground">
                         {getInitials(member.name)}
@@ -69,8 +75,12 @@ const Collaborators = () => {
             </CardHeader>
             <CardContent>
               <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                {externalCollaborators.map((member, index) => (
-                  <div key={index} className="flex items-center gap-4 p-4 rounded-lg hover:bg-muted/50 transition-colors">
+                {externalCollaborators.map((member) => (
+                  <div
+                    key={member.id}
+                    className="flex items-center gap-4 p-4 rounded-lg hover:bg-muted font-normal cursor-pointer transition-colors"
+                    onClick={() => setSelectedPerson(member)}
+                  >
                     <Avatar className="h-12 w-12">
                       <AvatarFallback className="bg-secondary text-secondary-foreground">
                         {getInitials(member.name)}
@@ -87,8 +97,51 @@ const Collaborators = () => {
           </Card>
         </div>
       </div>
+
+      <Dialog open={!!selectedPerson} onOpenChange={() => setSelectedPerson(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex flex-col items-center gap-4 py-4">
+              <Avatar className="h-24 w-24">
+                <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-bold">
+                  {selectedPerson ? getInitials(selectedPerson.name) : ""}
+                </AvatarFallback>
+              </Avatar>
+              <div className="text-center">
+                <DialogTitle className="text-2xl">{selectedPerson?.name}</DialogTitle>
+                <DialogDescription className="text-lg font-medium text-primary mt-1">
+                  {selectedPerson?.role}
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <User className="h-5 w-5" />
+              <span>Role: {selectedPerson?.role}</span>
+            </div>
+            {selectedPerson?.email && (
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Mail className="h-5 w-5" />
+                <a href={`mailto:${selectedPerson.email}`} className="hover:text-primary transition-colors">
+                  {selectedPerson.email}
+                </a>
+              </div>
+            )}
+            {selectedPerson?.phone && (
+              <div className="flex items-center gap-3 text-muted-foreground">
+                <Phone className="h-5 w-5" />
+                <a href={`tel:${selectedPerson.phone}`} className="hover:text-primary transition-colors">
+                  {selectedPerson.phone}
+                </a>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 };
 
 export default Collaborators;
+
