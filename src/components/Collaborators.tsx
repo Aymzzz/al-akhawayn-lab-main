@@ -17,9 +17,15 @@ const Collaborators = () => {
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
 
   useEffect(() => {
-    // Sort by order before setting state, fallback to 0 if order is missing
-    const storedPeople = dataService.getPeople().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-    setPeople(storedPeople);
+    const loadPeople = async () => {
+      try {
+        const data = await dataService.getPeople();
+        setPeople(data.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+      } catch (error) {
+        console.error("Failed to load people:", error);
+      }
+    };
+    loadPeople();
   }, []);
 
   const coreTeam = people.filter((p) => p.type === "core");

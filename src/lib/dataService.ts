@@ -1,3 +1,4 @@
+// dataService.ts
 export interface Person {
     id: string;
     name: string;
@@ -20,101 +21,101 @@ export interface Event {
 }
 
 export interface AuthData {
-    passwordHash: string;
-    securityQuestion: string;
-    securityAnswerHash: string;
+    // Only used for minimal local types, real auth is server-side
+    passwordHash?: string;
+    securityQuestion?: string;
+    securityAnswerHash?: string;
 }
 
-const STORAGE_KEY_PEOPLE = 'lab_people';
-const STORAGE_KEY_EVENTS = 'lab_events';
-const STORAGE_KEY_AUTH = 'lab_auth';
+export interface LogEntry {
+    id: string;
+    timestamp: string;
+    action: string;
+    details: string;
+    ip: string;
+}
 
-const initialPeople: Person[] = [
-    { id: '1', name: "Dr. Hassan Darhmaoui", role: "Project Initiator", type: 'core', email: "h.darhmaoui@aui.ma", order: 0 },
-    { id: '2', name: "Rachid Lghoul", role: "Project Manager / Coordinator", type: 'core', email: "r.lghoul@aui.ma", order: 1 },
-    { id: '3', name: "Dr. Amine Abouaomar", role: "Research Supervisor", type: 'core', email: "a.abouaomar@aui.ma", order: 2 },
-    { id: '4', name: "Dr. Paul Love", role: "Collaborator", type: 'core', order: 3 },
-    { id: '5', name: "Dr. Said Ennahid", role: "Collaborator", type: 'core', order: 4 },
-    { id: '6', name: "Ms. Hannen Duprat", role: "Collaborator", type: 'core', order: 5 },
-    { id: '7', name: "Samir Hajjaji", role: "Collaborator", type: 'core', order: 6 },
-    { id: '8', name: "Karim Moustagfir", role: "Collaborator", type: 'core', order: 7 },
-    { id: '9', name: "Houssam Octave", role: "External Partner", type: 'external', order: 8 },
-    { id: '10', name: "Aloui Mountasir", role: "External Partner", type: 'external', order: 9 },
-    { id: '11', name: "Omar Diouri", role: "External Partner", type: 'external', order: 10 },
-    { id: '12', name: "Yassin EMSI", role: "External Partner", type: 'external', order: 11 },
-];
-
-const initialEvents: Event[] = [
-    {
-        id: '1',
-        title: "AR/VR MEETUP",
-        description: "Augmented Reality Education for Engineering Labs - Introducing AR/VR to SSE Engineering Curriculum",
-        date: "January 22-23, 2023",
-        location: "New Cairo, Egypt",
-        type: "International Conference",
-    },
-    {
-        id: '2',
-        title: "Immersive Technologies: AR/VR Foundations",
-        description: "Special Topics course covering AR/VR fundamentals for engineering students",
-        date: "Fall 2025",
-        location: "Al Akhawayn University",
-        type: "Special Topics Course",
-        schedule: "Tuesday 7:30 PM - 8:50 PM",
-    },
-    {
-        id: '3',
-        title: "3D Scanning & Reverse Engineering Workshop",
-        description: "From Reality to Virtual Intelligence: 3D Scanning, Reverse Engineering, AR/VR, and AI Integration by ENGIMA Experts",
-        date: "TBA 2025",
-        location: "SSE, Al Akhawayn University",
-        type: "Industry Workshop",
-    },
-    {
-        id: '4',
-        title: "Invisible Festival Brussels",
-        description: "EMSI Casablanca students represented Morocco with a pioneering project merging AI, history, and immersive technology",
-        date: "April 5, 2025",
-        location: "Brussels, Belgium",
-        type: "Student Showcase",
-    },
-    {
-        id: '5',
-        title: "Mixed Reality MATLAB Workshop",
-        description: "Hands-on training for Mixed Reality Object Placement for Factory Layout using MATLAB",
-        date: "Academic Year 2025-2026",
-        location: "Engineering Lab, AUI",
-        type: "Technical Workshop",
-    },
-];
-
-const defaultAuth: AuthData = {
-    passwordHash: "admin123", // Using simple string for this demo
-    securityQuestion: "What is the name of the lab?",
-    securityAnswerHash: "AUI Immersive Lab"
-};
-
-const getStoredData = <T>(key: string, initial: T): T => {
-    const stored = localStorage.getItem(key);
-    if (stored) {
-        try {
-            return JSON.parse(stored);
-        } catch (e) {
-            console.error(`Error parsing stored data for ${key}`, e);
-        }
-    }
-    return initial;
-};
-
-const setStoredData = <T>(key: string, data: T) => {
-    localStorage.setItem(key, JSON.stringify(data));
+const getAuthHeaders = () => {
+    const token = localStorage.getItem('lab_admin_token');
+    return token ? { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
 };
 
 export const dataService = {
-    getPeople: () => getStoredData<Person[]>(STORAGE_KEY_PEOPLE, initialPeople),
-    savePeople: (people: Person[]) => setStoredData(STORAGE_KEY_PEOPLE, people),
-    getEvents: () => getStoredData<Event[]>(STORAGE_KEY_EVENTS, initialEvents),
-    saveEvents: (events: Event[]) => setStoredData(STORAGE_KEY_EVENTS, events),
-    getAuth: () => getStoredData<AuthData>(STORAGE_KEY_AUTH, defaultAuth),
-    saveAuth: (auth: AuthData) => setStoredData(STORAGE_KEY_AUTH, auth),
+    // People
+    getPeople: async (): Promise<Person[]> => {
+        const res = await fetch('/api/people');
+        if (!res.ok) throw new Error('Failed to fetch people');
+        return res.json();
+    },
+    savePeople: async (people: Person[]) => {
+        const res = await fetch('/api/people', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(people)
+        });
+        if (!res.ok) throw new Error('Failed to save people');
+        return res.json();
+    },
+
+    // Events
+    getEvents: async (): Promise<Event[]> => {
+        const res = await fetch('/api/events');
+        if (!res.ok) throw new Error('Failed to fetch events');
+        return res.json();
+    },
+    saveEvents: async (events: Event[]) => {
+        const res = await fetch('/api/events', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(events)
+        });
+        if (!res.ok) throw new Error('Failed to save events');
+        return res.json();
+    },
+
+    // Auth & Settings
+    login: async (password: string) => {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+        if (!res.ok) throw new Error('Invalid password');
+        return res.json(); // returns { token }
+    },
+
+    getSecurityQuestion: async () => {
+        const res = await fetch('/api/auth/question');
+        if (!res.ok) throw new Error('Failed to fetch question');
+        return res.json(); // returns { question }
+    },
+
+    recoverPassword: async (answer: string) => {
+        const res = await fetch('/api/auth/recover', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answer })
+        });
+        if (!res.ok) throw new Error('Invalid answer');
+        return res.json(); // returns { token }
+    },
+
+    updateSettings: async (settings: any) => {
+        const res = await fetch('/api/settings', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(settings)
+        });
+        if (!res.ok) throw new Error('Failed to update settings');
+        return res.json();
+    },
+
+    // Logs
+    getLogs: async (): Promise<LogEntry[]> => {
+        const res = await fetch('/api/logs', {
+            headers: getAuthHeaders()
+        });
+        if (!res.ok) throw new Error('Failed to fetch logs');
+        return res.json();
+    }
 };

@@ -8,7 +8,15 @@ const Workshops = () => {
   const [workshops, setWorkshops] = useState<Event[]>([]);
 
   useEffect(() => {
-    setWorkshops(dataService.getEvents());
+    const loadEvents = async () => {
+      try {
+        const data = await dataService.getEvents();
+        setWorkshops(data);
+      } catch (error) {
+        console.error("Failed to load workshops:", error);
+      }
+    };
+    loadEvents();
   }, []);
 
   return (

@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Menu, X } from "lucide-react";
+import { useNavigate, useLocation } from "react-router-dom";
 
 const Navigation = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -15,7 +18,11 @@ const Navigation = () => {
   }, []);
 
   const scrollToSection = (id: string) => {
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    if (location.pathname !== "/") {
+      navigate(`/#${id}`);
+    } else {
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
+    }
     setIsMobileMenuOpen(false);
   };
 
@@ -35,7 +42,13 @@ const Navigation = () => {
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           <button
-            onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            onClick={() => {
+              if (location.pathname !== "/") {
+                navigate("/");
+              } else {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
+            }}
             className="text-lg md:text-xl font-bold hover:text-primary transition-colors"
           >
             ILL

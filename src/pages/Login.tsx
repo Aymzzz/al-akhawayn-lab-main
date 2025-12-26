@@ -16,31 +16,38 @@ const Login = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        setAuthData(dataService.getAuth());
+        // Load security question for recovery
+        const loadQuestion = async () => {
+            try {
+                const { question } = await dataService.getSecurityQuestion();
+                setAuthData({ securityQuestion: question } as any);
+            } catch (error) {
+                console.error("Failed to load security question");
+            }
+        };
+        loadQuestion();
     }, []);
 
-    const handleLogin = (e: React.FormEvent) => {
+    const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!authData) return;
-
-        if (password === authData.passwordHash) {
-            localStorage.setItem("lab_admin_token", "authenticated");
+        try {
+            const { token } = await dataService.login(password);
+            localStorage.setItem("lab_admin_token", token);
             toast.success("Logged in successfully");
             navigate("/admin");
-        } else {
+        } catch (error) {
             toast.error("Invalid password");
         }
     };
 
-    const handleRecovery = (e: React.FormEvent) => {
+    const handleRecovery = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!authData) return;
-
-        if (securityAnswer.toLowerCase() === authData.securityAnswerHash.toLowerCase()) {
-            localStorage.setItem("lab_admin_token", "authenticated");
+        try {
+            const { token } = await dataService.recoverPassword(securityAnswer);
+            localStorage.setItem("lab_admin_token", token);
             toast.success("Identity verified. You can now reset your password in settings.");
             navigate("/admin");
-        } else {
+        } catch (error) {
             toast.error("Incorrect answer to security question");
         }
     };

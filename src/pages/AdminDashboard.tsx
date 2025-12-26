@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { dataService, Person, Event, AuthData } from "@/lib/dataService";
+import { dataService, Person, Event, AuthData, LogEntry } from "@/lib/dataService";
 import { toast } from "sonner";
 import Navigation from "@/components/Navigation";
-import { Plus, Trash2, Edit2, LogOut, ArrowUp, ArrowDown, Settings, User, ShieldCheck } from "lucide-react";
+import { Plus, Trash2, Edit2, LogOut, ArrowUp, ArrowDown, Settings, User, ShieldCheck, Activity } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -23,12 +23,21 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const [people, setPeople] = useState<Person[]>([]);
     const [events, setEvents] = useState<Event[]>([]);
-    const [auth, setAuth] = useState<AuthData>({ passwordHash: '', securityQuestion: '', securityAnswerHash: '' });
+    // Not loading full auth object anymore for security
+    const [logs, setLogs] = useState<LogEntry[]>([]);
 
     // Settings Form State
     const [settingsForm, setSettingsForm] = useState({
@@ -54,14 +63,33 @@ const AdminDashboard = () => {
             navigate("/login");
             return;
         }
-        const storedPeople = dataService.getPeople().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-        setPeople(storedPeople);
-        setEvents(dataService.getEvents());
-        setAuth(dataService.getAuth());
-        setSettingsForm(prev => ({
-            ...prev,
-            securityQuestion: dataService.getAuth().securityQuestion
-        }));
+
+        const loadData = async () => {
+            try {
+                const [loadedPeople, loadedEvents, loadedLogs] = await Promise.all([
+                    dataService.getPeople(),
+                    dataService.getEvents(),
+                    dataService.getLogs()
+                ]);
+
+                setPeople(loadedPeople.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
+                setEvents(loadedEvents);
+                setLogs(loadedLogs);
+
+                // Get security question separately
+                const { question } = await dataService.getSecurityQuestion();
+                setSettingsForm(prev => ({
+                    ...prev,
+                    securityQuestion: question || ''
+                }));
+
+            } catch (error) {
+                console.error("Failed to load admin data", error);
+                // navigate("/login"); // Optional: redirect on error
+            }
+        };
+
+        loadData();
     }, [navigate]);
 
     const handleLogout = () => {
@@ -81,7 +109,7 @@ const AdminDashboard = () => {
         setIsPersonDialogOpen(true);
     };
 
-    const savePerson = () => {
+    const savePerson = async () => {
         if (!personForm.name || !personForm.role) {
             toast.error("Name and Role are required");
             return;
@@ -90,7 +118,6 @@ const AdminDashboard = () => {
         let updatedPeople;
         if (editingPerson) {
             updatedPeople = people.map(p => p.id === editingPerson.id ? { ...p, ...personForm } as Person : p);
-            toast.success("Person updated");
         } else {
             const newPerson = {
                 ...personForm,
@@ -98,24 +125,39 @@ const AdminDashboard = () => {
                 order: people.length
             } as Person;
             updatedPeople = [...people, newPerson];
-            toast.success("Person added");
         }
 
-        setPeople(updatedPeople.sort((a, b) => a.order - b.order));
-        dataService.savePeople(updatedPeople);
-        setIsPersonDialogOpen(false);
+        try {
+            const sorted = updatedPeople.sort((a, b) => a.order - b.order);
+            await dataService.savePeople(sorted);
+            toast.success(editingPerson ? "Person updated" : "Person added");
+
+            // Refresh local state and logs
+            setPeople(sorted);
+            setIsPersonDialogOpen(false);
+            const loadedLogs = await dataService.getLogs();
+            setLogs(loadedLogs);
+        } catch (e) {
+            toast.error("Failed to save person");
+        }
     };
 
-    const deletePerson = (id: string) => {
+    const deletePerson = async (id: string) => {
         if (confirm("Are you sure you want to remove this person?")) {
             const updated = people.filter(p => p.id !== id).map((p, i) => ({ ...p, order: i }));
-            setPeople(updated);
-            dataService.savePeople(updated);
-            toast.success("Person removed");
+            try {
+                await dataService.savePeople(updated);
+                setPeople(updated);
+                toast.success("Person removed");
+                const loadedLogs = await dataService.getLogs();
+                setLogs(loadedLogs);
+            } catch (e) {
+                toast.error("Failed to delete person");
+            }
         }
     };
 
-    const movePerson = (index: number, direction: 'up' | 'down') => {
+    const movePerson = async (index: number, direction: 'up' | 'down') => {
         const newPeople = [...people];
         const targetIndex = direction === 'up' ? index - 1 : index + 1;
 
@@ -127,8 +169,12 @@ const AdminDashboard = () => {
         newPeople[targetIndex].order = tempOrder;
 
         const sorted = newPeople.sort((a, b) => a.order - b.order);
-        setPeople(sorted);
-        dataService.savePeople(sorted);
+        try {
+            await dataService.savePeople(sorted);
+            setPeople(sorted);
+        } catch (e) {
+            toast.error("Failed to reorder");
+        }
     };
 
     // --- Event CRUD ---
@@ -143,7 +189,7 @@ const AdminDashboard = () => {
         setIsEventDialogOpen(true);
     };
 
-    const saveEvent = () => {
+    const saveEvent = async () => {
         if (!eventForm.title || !eventForm.date) {
             toast.error("Title and Date are required");
             return;
@@ -152,71 +198,93 @@ const AdminDashboard = () => {
         let updatedEvents;
         if (editingEvent) {
             updatedEvents = events.map(e => e.id === editingEvent.id ? { ...e, ...eventForm } as Event : e);
-            toast.success("Event updated");
         } else {
             const newEvent = { ...eventForm, id: Math.random().toString(36).substr(2, 9) } as Event;
             updatedEvents = [...events, newEvent];
-            toast.success("Event added");
         }
 
-        setEvents(updatedEvents);
-        dataService.saveEvents(updatedEvents);
-        setIsEventDialogOpen(false);
+        try {
+            await dataService.saveEvents(updatedEvents);
+            setEvents(updatedEvents);
+            toast.success(editingEvent ? "Event updated" : "Event added");
+            setIsEventDialogOpen(false);
+            const loadedLogs = await dataService.getLogs();
+            setLogs(loadedLogs);
+        } catch (e) {
+            toast.error("Failed to save event");
+        }
     };
 
-    const deleteEvent = (id: string) => {
+    const deleteEvent = async (id: string) => {
         if (confirm("Are you sure you want to remove this event?")) {
             const updated = events.filter(e => e.id !== id);
-            setEvents(updated);
-            dataService.saveEvents(updated);
-            toast.success("Event removed");
+            try {
+                await dataService.saveEvents(updated);
+                setEvents(updated);
+                toast.success("Event removed");
+                const loadedLogs = await dataService.getLogs();
+                setLogs(loadedLogs);
+            } catch (e) {
+                toast.error("Failed to delete event");
+            }
         }
     };
 
     // --- Settings ---
-    const updateSettings = () => {
-        const newAuth = { ...auth };
+    const updateSettings = async () => {
+        const updateData: any = {};
 
         if (settingsForm.newPassword) {
             if (settingsForm.newPassword !== settingsForm.confirmPassword) {
                 toast.error("Passwords do not match");
                 return;
             }
-            newAuth.passwordHash = settingsForm.newPassword;
+            updateData.passwordHash = settingsForm.newPassword;
         }
 
         if (settingsForm.securityQuestion) {
-            newAuth.securityQuestion = settingsForm.securityQuestion;
+            updateData.securityQuestion = settingsForm.securityQuestion;
         }
 
         if (settingsForm.securityAnswer) {
-            newAuth.securityAnswerHash = settingsForm.securityAnswer;
+            updateData.securityAnswerHash = settingsForm.securityAnswer;
         }
 
-        setAuth(newAuth);
-        dataService.saveAuth(newAuth);
-        toast.success("Settings updated successfully");
-        setSettingsForm(prev => ({ ...prev, newPassword: '', confirmPassword: '', securityAnswer: '' }));
+        try {
+            await dataService.updateSettings(updateData);
+            toast.success("Settings updated successfully");
+            setSettingsForm(prev => ({ ...prev, newPassword: '', confirmPassword: '', securityAnswer: '' }));
+            const loadedLogs = await dataService.getLogs();
+            setLogs(loadedLogs);
+        } catch (e) {
+            toast.error("Failed to update settings");
+        }
     };
 
     return (
-        <div className="min-h-screen bg-muted/30">
+        <div className="min-h-screen bg-muted/30 pt-24 pb-12">
             <Navigation />
-            <div className="container mx-auto px-4 py-10">
+            <div className="container mx-auto px-4">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-                    <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-                    <Button variant="outline" onClick={handleLogout} className="text-destructive hover:bg-destructive/10">
-                        <LogOut className="mr-2 h-4 w-4" /> Logout
+                    <div>
+                        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+                        <p className="text-muted-foreground">Manage your lab's content and security</p>
+                    </div>
+                    <Button variant="outline" onClick={handleLogout} className="flex items-center gap-2">
+                        <LogOut className="h-4 w-4" />
+                        Logout
                     </Button>
                 </div>
-
                 <Tabs defaultValue="people" className="space-y-6">
-                    <TabsList className="grid w-full grid-cols-3 max-w-[500px]">
+                    <TabsList className="grid w-full grid-cols-4 max-w-[600px]">
                         <TabsTrigger value="people" className="flex items-center gap-2">
                             <User className="h-4 w-4" /> Team
                         </TabsTrigger>
                         <TabsTrigger value="events" className="flex items-center gap-2">
                             Show Events
+                        </TabsTrigger>
+                        <TabsTrigger value="logs" className="flex items-center gap-2">
+                            <Activity className="h-4 w-4" /> Logs
                         </TabsTrigger>
                         <TabsTrigger value="settings" className="flex items-center gap-2">
                             <Settings className="h-4 w-4" /> Settings
@@ -301,6 +369,44 @@ const AdminDashboard = () => {
                                 </Card>
                             ))}
                         </div>
+                    </TabsContent>
+
+                    <TabsContent value="logs" className="space-y-4">
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Activity className="h-5 w-5" /> Audit Logs
+                                </CardTitle>
+                                <CardDescription>View recent administrative actions</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Time</TableHead>
+                                            <TableHead>Action</TableHead>
+                                            <TableHead>Details</TableHead>
+                                            <TableHead>IP</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {logs.map(log => (
+                                            <TableRow key={log.id}>
+                                                <TableCell className="font-mono text-xs">{new Date(log.timestamp).toLocaleString()}</TableCell>
+                                                <TableCell className="font-medium">{log.action}</TableCell>
+                                                <TableCell>{log.details}</TableCell>
+                                                <TableCell className="text-muted-foreground">{log.ip}</TableCell>
+                                            </TableRow>
+                                        ))}
+                                        {logs.length === 0 && (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="text-center text-muted-foreground py-8">No logs found</TableCell>
+                                            </TableRow>
+                                        )}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
                     </TabsContent>
 
                     <TabsContent value="settings" className="space-y-6">

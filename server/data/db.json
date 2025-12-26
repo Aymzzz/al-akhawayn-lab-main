@@ -1,0 +1,210 @@
+{
+  "people": [
+    {
+      "type": "core",
+      "name": "Aymane Sbai",
+      "role": "Research & Instructor",
+      "email": "a.sbai@aui.ma",
+      "phone": "",
+      "image": "",
+      "order": 0,
+      "id": "ym9aygqhb"
+    },
+    {
+      "type": "core",
+      "name": "Imane Guessous",
+      "role": "Researcher & Instructor",
+      "email": "i.guessous@aui.ma",
+      "phone": "",
+      "image": "",
+      "order": 1,
+      "id": "2igbtwfx7"
+    },
+    {
+      "id": "1",
+      "name": "Hassan Darhmaoui",
+      "role": "Project Initiator",
+      "type": "core",
+      "email": "h.darhmaoui@aui.ma",
+      "order": 2
+    },
+    {
+      "id": "2",
+      "name": "Rachid Lghoul",
+      "role": "Project Manager / Coordinator",
+      "type": "core",
+      "email": "r.lghoul@aui.ma",
+      "order": 3
+    },
+    {
+      "id": "3",
+      "name": "Dr. Amine Abouaomar",
+      "role": "Research Supervisor",
+      "type": "core",
+      "email": "a.abouaomar@aui.ma",
+      "order": 4
+    }
+  ],
+  "events": [],
+  "auth": {
+    "passwordHash": "admin123",
+    "securityQuestion": "What is the name of the lab?",
+    "securityAnswerHash": "AUI Immersive Lab"
+  },
+  "logs": [
+    {
+      "id": "1766774611114",
+      "timestamp": "2025-12-26T18:43:31.114Z",
+      "action": "LOGIN",
+      "details": "Admin logged in",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766774286541",
+      "timestamp": "2025-12-26T18:38:06.541Z",
+      "action": "LOGIN",
+      "details": "Admin logged in",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773519650",
+      "timestamp": "2025-12-26T18:25:19.650Z",
+      "action": "LOGIN",
+      "details": "Admin logged in",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773158968",
+      "timestamp": "2025-12-26T18:19:18.968Z",
+      "action": "SETTINGS_UPDATE",
+      "details": "Admin settings updated",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773088369",
+      "timestamp": "2025-12-26T18:18:08.369Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773084458",
+      "timestamp": "2025-12-26T18:18:04.458Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773083321",
+      "timestamp": "2025-12-26T18:18:03.321Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773082241",
+      "timestamp": "2025-12-26T18:18:02.241Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773081591",
+      "timestamp": "2025-12-26T18:18:01.591Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773080611",
+      "timestamp": "2025-12-26T18:18:00.611Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773078279",
+      "timestamp": "2025-12-26T18:17:58.281Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773067992",
+      "timestamp": "2025-12-26T18:17:47.992Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773066450",
+      "timestamp": "2025-12-26T18:17:46.450Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773065491",
+      "timestamp": "2025-12-26T18:17:45.491Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773062625",
+      "timestamp": "2025-12-26T18:17:42.625Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773037242",
+      "timestamp": "2025-12-26T18:17:17.242Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 4 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773036200",
+      "timestamp": "2025-12-26T18:17:16.200Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 4 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773035067",
+      "timestamp": "2025-12-26T18:17:15.067Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 4 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766773033427",
+      "timestamp": "2025-12-26T18:17:13.428Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 4 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766772999754",
+      "timestamp": "2025-12-26T18:16:39.754Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 3 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766772997354",
+      "timestamp": "2025-12-26T18:16:37.354Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 3 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1766772993086",
+      "timestamp": "2025-12-26T18:16:33.086Z",
+      "action": "LOGIN",
+      "details": "Admin logged in",
+      "ip": "::ffff:127.0.0.1"
+    }
+  ]
+}
