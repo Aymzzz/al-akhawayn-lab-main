@@ -3,7 +3,7 @@
     {
       "type": "core",
       "name": "Aymane Sbai",
-      "role": "Research & Instructor",
+      "role": "Researcher & Instructor",
       "email": "a.sbai@aui.ma",
       "phone": "",
       "image": "",
@@ -52,6 +52,20 @@
     "securityAnswerHash": "AUI Immersive Lab"
   },
   "logs": [
+    {
+      "id": "1767974352034",
+      "timestamp": "2026-01-09T15:59:12.034Z",
+      "action": "UPDATE_PEOPLE",
+      "details": "Updated 5 people",
+      "ip": "::ffff:127.0.0.1"
+    },
+    {
+      "id": "1767974344055",
+      "timestamp": "2026-01-09T15:59:04.055Z",
+      "action": "LOGIN",
+      "details": "Admin logged in",
+      "ip": "::ffff:127.0.0.1"
+    },
     {
       "id": "1766774611114",
       "timestamp": "2025-12-26T18:43:31.114Z",
