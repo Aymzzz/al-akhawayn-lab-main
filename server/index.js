@@ -1,78 +1,32 @@
 import express from 'express';
 import cors from 'cors';
 import jwt from 'jsonwebtoken';
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+import { createClient } from '@supabase/supabase-js';
 
 const app = express();
-const PORT = 3001;
 const SECRET_KEY = process.env.JWT_SECRET || 'super-secret-key-change-this-in-prod';
-const DB_FILE = path.join(__dirname, 'data', 'db.json');
+
+// Supabase configuration
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_ANON_KEY;
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
 
 app.use(cors());
 app.use(express.json());
 
-// Serve static files from React build
-app.use(express.static(path.join(__dirname, '../dist')));
-
-
-// Helper to read DB
-const readDb = () => {
-    try {
-        if (!fs.existsSync(DB_FILE)) {
-            // Seed if not exists
-            const seed = {
-                people: [
-                    { id: '1', name: "Dr. Hassan Darhmaoui", role: "Project Initiator", type: 'core', email: "h.darhmaoui@aui.ma", order: 0 },
-                    { id: '2', name: "Rachid Lghoul", role: "Project Manager / Coordinator", type: 'core', email: "r.lghoul@aui.ma", order: 1 },
-                    { id: '3', name: "Dr. Amine Abouaomar", role: "Research Supervisor", type: 'core', email: "a.abouaomar@aui.ma", order: 2 },
-                ],
-                events: [],
-                auth: {
-                    passwordHash: "admin123",
-                    securityQuestion: "What is the name of the lab?",
-                    securityAnswerHash: "AUI Immersive Lab"
-                },
-                logs: []
-            };
-            fs.mkdirSync(path.dirname(DB_FILE), { recursive: true });
-            fs.writeFileSync(DB_FILE, JSON.stringify(seed, null, 2));
-            return seed;
-        }
-        return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
-    } catch (error) {
-        console.error("Error reading DB:", error);
-        return { people: [], events: [], auth: {}, logs: [] };
-    }
-};
-
-// Helper to write DB
-const writeDb = (data) => {
-    try {
-        fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
-    } catch (error) {
-        console.error("Error writing DB:", error);
-    }
-};
-
 // Helper for logging
-const logAction = (action, details, ip) => {
-    const db = readDb();
-    const newLog = {
-        id: Date.now().toString(),
-        timestamp: new Date().toISOString(),
-        action,
-        details,
-        ip
-    };
-    db.logs.unshift(newLog); // Add to beginning
-    // Keep only last 100 logs
-    if (db.logs.length > 100) db.logs = db.logs.slice(0, 100);
-    writeDb(db);
+const logAction = async (action, details, ip) => {
+    if (!supabase) return;
+    try {
+        await supabase.from('logs').insert([{
+            action,
+            details,
+            ip,
+            timestamp: new Date().toISOString()
+        }]);
+    } catch (error) {
+        console.error("Error logging action:", error);
+    }
 };
 
 // Middleware to verify token
@@ -91,102 +45,170 @@ const authenticateToken = (req, res, next) => {
 
 // --- AUTH ROUTES ---
 
-app.post('/api/auth/login', (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
     const { password } = req.body;
-    const db = readDb();
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
 
-    if (password === db.auth.passwordHash) {
-        const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '2h' });
-        logAction('LOGIN', 'Admin logged in', req.ip);
-        res.json({ token });
-    } else {
-        logAction('LOGIN_FAILED', 'Invalid password attempt', req.ip);
-        res.status(401).json({ message: "Invalid password" });
+    try {
+        const { data: auth, error } = await supabase.from('auth').select('*').single();
+        if (error) throw error;
+
+        if (password === auth.passwordHash) {
+            const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '2h' });
+            await logAction('LOGIN', 'Admin logged in', req.ip);
+            res.json({ token });
+        } else {
+            await logAction('LOGIN_FAILED', 'Invalid password attempt', req.ip);
+            res.status(401).json({ message: "Invalid password" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 });
 
-app.get('/api/auth/question', (req, res) => {
-    const db = readDb();
-    res.json({ question: db.auth.securityQuestion });
+app.get('/api/auth/question', async (req, res) => {
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+    try {
+        const { data: auth, error } = await supabase.from('auth').select('securityQuestion').single();
+        if (error) throw error;
+        res.json({ question: auth.securityQuestion });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-app.post('/api/auth/recover', (req, res) => {
+app.post('/api/auth/recover', async (req, res) => {
     const { answer } = req.body;
-    const db = readDb();
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
 
-    if (answer.toLowerCase() === db.auth.securityAnswerHash.toLowerCase()) {
-        const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '15m' }); // Short lived token for reset
-        logAction('RECOVERY', 'Password recovery successful', req.ip);
-        res.json({ token, message: "Recovery successful" });
-    } else {
-        logAction('RECOVERY_FAILED', 'Invalid recovery answer', req.ip);
-        res.status(401).json({ message: "Invalid answer" });
+    try {
+        const { data: auth, error } = await supabase.from('auth').select('*').single();
+        if (error) throw error;
+
+        if (answer.toLowerCase() === auth.securityAnswerHash.toLowerCase()) {
+            const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '15m' });
+            await logAction('RECOVERY', 'Password recovery successful', req.ip);
+            res.json({ token, message: "Recovery successful" });
+        } else {
+            await logAction('RECOVERY_FAILED', 'Invalid recovery answer', req.ip);
+            res.status(401).json({ message: "Invalid answer" });
+        }
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
 });
 
 // --- PROTECTED ROUTES ---
 
-app.get('/api/settings', authenticateToken, (req, res) => {
-    const db = readDb();
-    // Don't send real passwords back
-    res.json({
-        securityQuestion: db.auth.securityQuestion
-    });
+app.get('/api/settings', authenticateToken, async (req, res) => {
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+    try {
+        const { data: auth, error } = await supabase.from('auth').select('securityQuestion').single();
+        if (error) throw error;
+        res.json({ securityQuestion: auth.securityQuestion });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-app.post('/api/settings', authenticateToken, (req, res) => {
+app.post('/api/settings', authenticateToken, async (req, res) => {
     const { passwordHash, securityQuestion, securityAnswerHash } = req.body;
-    const db = readDb();
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
 
-    if (passwordHash) db.auth.passwordHash = passwordHash;
-    if (securityQuestion) db.auth.securityQuestion = securityQuestion;
-    if (securityAnswerHash) db.auth.securityAnswerHash = securityAnswerHash;
+    try {
+        const updates = {};
+        if (passwordHash) updates.passwordHash = passwordHash;
+        if (securityQuestion) updates.securityQuestion = securityQuestion;
+        if (securityAnswerHash) updates.securityAnswerHash = securityAnswerHash;
 
-    writeDb(db);
-    logAction('SETTINGS_UPDATE', 'Admin settings updated', req.ip);
-    res.json({ message: "Settings updated" });
+        const { error } = await supabase.from('auth').update(updates).eq('id', 1); // Assuming single row with id 1
+        if (error) throw error;
+
+        await logAction('SETTINGS_UPDATE', 'Admin settings updated', req.ip);
+        res.json({ message: "Settings updated" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-app.get('/api/logs', authenticateToken, (req, res) => {
-    const db = readDb();
-    res.json(db.logs);
+app.get('/api/logs', authenticateToken, async (req, res) => {
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+    try {
+        const { data: logs, error } = await supabase.from('logs').select('*').order('timestamp', { ascending: false }).limit(100);
+        if (error) throw error;
+        res.json(logs);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
 // --- DATA ROUTES (Public Read, Protected Write) ---
 
-app.get('/api/people', (req, res) => {
-    const db = readDb();
-    res.json(db.people || []);
+app.get('/api/people', async (req, res) => {
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+    try {
+        const { data: people, error } = await supabase.from('people').select('*').order('order', { ascending: true });
+        if (error) throw error;
+        res.json(people || []);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-app.post('/api/people', authenticateToken, (req, res) => {
+app.post('/api/people', authenticateToken, async (req, res) => {
     const people = req.body;
-    const db = readDb();
-    db.people = people;
-    writeDb(db);
-    logAction('UPDATE_PEOPLE', `Updated ${people.length} people`, req.ip);
-    res.json({ message: "People updated" });
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+
+    try {
+        // Simple approach: delete all and insert new (or use upsert if IDs are consistent)
+        const { error: deleteError } = await supabase.from('people').delete().neq('id', '0');
+        if (deleteError) throw deleteError;
+
+        const { error: insertError } = await supabase.from('people').insert(people);
+        if (insertError) throw insertError;
+
+        await logAction('UPDATE_PEOPLE', `Updated ${people.length} people`, req.ip);
+        res.json({ message: "People updated" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-app.get('/api/events', (req, res) => {
-    const db = readDb();
-    res.json(db.events || []);
+app.get('/api/events', async (req, res) => {
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+    try {
+        const { data: events, error } = await supabase.from('events').select('*').order('date', { ascending: false });
+        if (error) throw error;
+        res.json(events || []);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-app.post('/api/events', authenticateToken, (req, res) => {
+app.post('/api/events', authenticateToken, async (req, res) => {
     const events = req.body;
-    const db = readDb();
-    db.events = events;
-    writeDb(db);
-    logAction('UPDATE_EVENTS', `Updated ${events.length} events`, req.ip);
-    res.json({ message: "Events updated" });
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+
+    try {
+        const { error: deleteError } = await supabase.from('events').delete().neq('id', '0');
+        if (deleteError) throw deleteError;
+
+        const { error: insertError } = await supabase.from('events').insert(events);
+        if (insertError) throw insertError;
+
+        await logAction('UPDATE_EVENTS', `Updated ${events.length} events`, req.ip);
+        res.json({ message: "Events updated" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-// Handle React routing, return all requests to React app
-app.get(/.*/, (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist', 'index.html'));
-});
+export default app;
 
-app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+// Support local development
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = 3001;
+    app.listen(PORT, () => {
+        console.log(`Server running on http://localhost:${PORT}`);
+    });
+}
