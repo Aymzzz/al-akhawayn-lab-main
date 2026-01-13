@@ -41,7 +41,10 @@ CREATE TABLE auth (
 -- 5. Seed initial data
 INSERT INTO auth (id, passwordHash, securityQuestion, securityAnswerHash)
 VALUES (1, 'admin123', 'What is the name of the lab?', 'AUI Immersive Lab')
-ON CONFLICT (id) DO NOTHING;
+ON CONFLICT (id) DO UPDATE SET
+  passwordHash = EXCLUDED.passwordHash,
+  securityQuestion = EXCLUDED.securityQuestion,
+  securityAnswerHash = EXCLUDED.securityAnswerHash;
 
 INSERT INTO people (id, name, role, type, email, "order")
 VALUES 
@@ -49,3 +52,9 @@ VALUES
 ('2', 'Rachid Lghoul', 'Project Manager / Coordinator', 'core', 'r.lghoul@aui.ma', 1),
 ('3', 'Dr. Amine Abouaomar', 'Research Supervisor', 'core', 'a.abouaomar@aui.ma', 2)
 ON CONFLICT (id) DO NOTHING;
+
+-- 6. Disable RLS (Required for free tier access without complex policies)
+ALTER TABLE people DISABLE ROW LEVEL SECURITY;
+ALTER TABLE events DISABLE ROW LEVEL SECURITY;
+ALTER TABLE logs DISABLE ROW LEVEL SECURITY;
+ALTER TABLE auth DISABLE ROW LEVEL SECURITY;

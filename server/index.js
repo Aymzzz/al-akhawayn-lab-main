@@ -62,8 +62,8 @@ app.post('/api/auth/login', async (req, res) => {
             await logAction('LOGIN', 'Admin logged in', req.ip);
             res.json({ token });
         } else {
-            await logAction('LOGIN_FAILED', 'Invalid password attempt', req.ip);
-            res.status(401).json({ message: "Invalid password" });
+            await logAction('LOGIN_FAILED', `Invalid password attempt: ${password}`, req.ip);
+            res.status(401).json({ message: "Invalid password. Re-run the SQL script if you are unsure." });
         }
     } catch (error) {
         res.status(500).json({ message: error.message });

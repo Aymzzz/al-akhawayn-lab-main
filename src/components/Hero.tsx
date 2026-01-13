@@ -3,15 +3,15 @@ import { Button } from "@/components/ui/button";
 const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
-      {/* Background Image using standard img tag for highest compatibility */}
+      {/* Background Image - Guaranteed visibility */}
       <img
         src="/campus.webp"
         alt="AUI Campus"
-        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-60"
+        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-80 mix-blend-screen"
       />
 
-      {/* Subtle Overlay to ensure text readability */}
-      <div className="absolute inset-0 bg-black/30 z-[1]" />
+      {/* Subtle Overlay to ensure text readability - reduced opacity */}
+      <div className="absolute inset-0 bg-black/20 z-[1]" />
 
       <div className="container mx-auto px-4 py-20 relative z-10">
         <div className="max-w-4xl mx-auto text-center space-y-8">

@@ -80,13 +80,19 @@ export const dataService = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password })
         });
-        if (!res.ok) throw new Error('Invalid password');
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.message || 'Invalid password');
+        }
         return res.json(); // returns { token }
     },
 
     getSecurityQuestion: async () => {
         const res = await fetch('/api/auth/question');
-        if (!res.ok) throw new Error('Failed to fetch question');
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.message || 'Failed to fetch question');
+        }
         return res.json(); // returns { question }
     },
 
@@ -96,7 +102,10 @@ export const dataService = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ answer })
         });
-        if (!res.ok) throw new Error('Invalid answer');
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({}));
+            throw new Error(error.message || 'Invalid answer');
+        }
         return res.json(); // returns { token }
     },
 

@@ -15,16 +15,17 @@ const Login = () => {
     const [authData, setAuthData] = useState<AuthData | null>(null);
     const navigate = useNavigate();
 
+    const loadQuestion = async () => {
+        try {
+            const { question } = await dataService.getSecurityQuestion();
+            setAuthData({ securityQuestion: question } as any);
+        } catch (error: any) {
+            console.error("Failed to load security question");
+            toast.error("Could not load security question. Please check if your Supabase tables are set up and RLS is disabled.");
+        }
+    };
+
     useEffect(() => {
-        // Load security question for recovery
-        const loadQuestion = async () => {
-            try {
-                const { question } = await dataService.getSecurityQuestion();
-                setAuthData({ securityQuestion: question } as any);
-            } catch (error) {
-                console.error("Failed to load security question");
-            }
-        };
         loadQuestion();
     }, []);
 
@@ -35,8 +36,9 @@ const Login = () => {
             localStorage.setItem("lab_admin_token", token);
             toast.success("Logged in successfully");
             navigate("/admin");
-        } catch (error) {
-            toast.error("Invalid password");
+        } catch (error: any) {
+            const message = error.message || "Invalid password";
+            toast.error(`Login failed: ${message}`);
         }
     };
 
@@ -47,8 +49,9 @@ const Login = () => {
             localStorage.setItem("lab_admin_token", token);
             toast.success("Identity verified. You can now reset your password in settings.");
             navigate("/admin");
-        } catch (error) {
-            toast.error("Incorrect answer to security question");
+        } catch (error: any) {
+            const message = error.message || "Incorrect answer";
+            toast.error(`Recovery failed: ${message}`);
         }
     };
 
@@ -89,7 +92,10 @@ const Login = () => {
                                 <div className="text-center">
                                     <button
                                         type="button"
-                                        onClick={() => setIsForgotPassword(true)}
+                                        onClick={() => {
+                                            setIsForgotPassword(true);
+                                            loadQuestion();
+                                        }}
                                         className="text-sm text-primary hover:underline"
                                     >
                                         Forgot your password?
