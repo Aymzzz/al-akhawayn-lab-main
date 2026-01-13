@@ -47,11 +47,15 @@ const authenticateToken = (req, res, next) => {
 
 app.post('/api/auth/login', async (req, res) => {
     const { password } = req.body;
-    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured. Check your Environment Variables." });
 
     try {
         const { data: auth, error } = await supabase.from('auth').select('*').single();
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase Auth Error:", error);
+            return res.status(500).json({ message: `Database error: ${error.message}. Ensure the 'auth' table exists and has data.` });
+        }
+        if (!auth) return res.status(404).json({ message: "No authentication data found in database. Run the SQL setup script." });
 
         if (password === auth.passwordHash) {
             const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '2h' });
@@ -67,10 +71,14 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 app.get('/api/auth/question', async (req, res) => {
-    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured. Check your Environment Variables." });
     try {
         const { data: auth, error } = await supabase.from('auth').select('securityQuestion').single();
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase Question Error:", error);
+            return res.status(500).json({ message: `Database error: ${error.message}` });
+        }
+        if (!auth) return res.status(404).json({ message: "No security question found. Check your 'auth' table." });
         res.json({ question: auth.securityQuestion });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -79,11 +87,15 @@ app.get('/api/auth/question', async (req, res) => {
 
 app.post('/api/auth/recover', async (req, res) => {
     const { answer } = req.body;
-    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured. Check your Environment Variables." });
 
     try {
         const { data: auth, error } = await supabase.from('auth').select('*').single();
-        if (error) throw error;
+        if (error) {
+            console.error("Supabase Recovery Error:", error);
+            return res.status(500).json({ message: `Database error: ${error.message}` });
+        }
+        if (!auth) return res.status(404).json({ message: "Security settings not found." });
 
         if (answer.toLowerCase() === auth.securityAnswerHash.toLowerCase()) {
             const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '15m' });
