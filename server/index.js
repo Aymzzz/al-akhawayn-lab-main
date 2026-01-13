@@ -57,7 +57,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
         if (!auth) return res.status(404).json({ message: "No authentication data found in database. Run the SQL setup script." });
 
-        if (password === auth.passwordHash) {
+        if (password === auth.passwordhash) {
             const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '2h' });
             await logAction('LOGIN', 'Admin logged in', req.ip);
             res.json({ token });
@@ -73,13 +73,13 @@ app.post('/api/auth/login', async (req, res) => {
 app.get('/api/auth/question', async (req, res) => {
     if (!supabase) return res.status(503).json({ message: "Supabase not configured. Check your Environment Variables." });
     try {
-        const { data: auth, error } = await supabase.from('auth').select('securityQuestion').single();
+        const { data: auth, error } = await supabase.from('auth').select('securityquestion').single();
         if (error) {
             console.error("Supabase Question Error:", error);
             return res.status(500).json({ message: `Database error: ${error.message}` });
         }
         if (!auth) return res.status(404).json({ message: "No security question found. Check your 'auth' table." });
-        res.json({ question: auth.securityQuestion });
+        res.json({ question: auth.securityquestion });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -97,7 +97,7 @@ app.post('/api/auth/recover', async (req, res) => {
         }
         if (!auth) return res.status(404).json({ message: "Security settings not found." });
 
-        if (answer.toLowerCase() === auth.securityAnswerHash.toLowerCase()) {
+        if (answer.toLowerCase() === auth.securityanswerhash.toLowerCase()) {
             const token = jwt.sign({ role: 'admin' }, SECRET_KEY, { expiresIn: '15m' });
             await logAction('RECOVERY', 'Password recovery successful', req.ip);
             res.json({ token, message: "Recovery successful" });
@@ -115,9 +115,9 @@ app.post('/api/auth/recover', async (req, res) => {
 app.get('/api/settings', authenticateToken, async (req, res) => {
     if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
     try {
-        const { data: auth, error } = await supabase.from('auth').select('securityQuestion').single();
+        const { data: auth, error } = await supabase.from('auth').select('securityquestion').single();
         if (error) throw error;
-        res.json({ securityQuestion: auth.securityQuestion });
+        res.json({ securityQuestion: auth.securityquestion });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -129,9 +129,9 @@ app.post('/api/settings', authenticateToken, async (req, res) => {
 
     try {
         const updates = {};
-        if (passwordHash) updates.passwordHash = passwordHash;
-        if (securityQuestion) updates.securityQuestion = securityQuestion;
-        if (securityAnswerHash) updates.securityAnswerHash = securityAnswerHash;
+        if (passwordHash) updates.passwordhash = passwordHash;
+        if (securityQuestion) updates.securityquestion = securityQuestion;
+        if (securityAnswerHash) updates.securityanswerhash = securityAnswerHash;
 
         const { error } = await supabase.from('auth').update(updates).eq('id', 1); // Assuming single row with id 1
         if (error) throw error;

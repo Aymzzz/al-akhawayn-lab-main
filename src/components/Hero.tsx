@@ -1,12 +1,11 @@
 import { Button } from "@/components/ui/button";
-import campusImage from "@/assets/campus.webp";
 
 const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
-      {/* Background Image - Imported via Vite for reliability */}
+      {/* Background Image - Using public folder for reliable Vercel serving */}
       <img
-        src={campusImage}
+        src="/campus_bg.webp"
         alt="AUI Campus"
         className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-60"
       />
