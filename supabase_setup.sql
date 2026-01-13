@@ -1,5 +1,12 @@
+-- 0. Cleanup (Ensures schema updates like the new 'phone' column are applied)
+DROP TABLE IF EXISTS people CASCADE;
+DROP TABLE IF EXISTS events CASCADE;
+DROP TABLE IF EXISTS projects CASCADE;
+DROP TABLE IF EXISTS auth CASCADE;
+DROP TABLE IF EXISTS logs CASCADE;
+
 -- 1. Create People table (Added phone column)
-CREATE TABLE IF NOT EXISTS people (
+CREATE TABLE people (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   role TEXT NOT NULL,
@@ -11,7 +18,7 @@ CREATE TABLE IF NOT EXISTS people (
 );
 
 -- 2. Create Events table
-CREATE TABLE IF NOT EXISTS events (
+CREATE TABLE events (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -22,7 +29,7 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 -- 3. Create Projects table (New!)
-CREATE TABLE IF NOT EXISTS projects (
+CREATE TABLE projects (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -32,7 +39,7 @@ CREATE TABLE IF NOT EXISTS projects (
 );
 
 -- 4. Create Logs table
-CREATE TABLE IF NOT EXISTS logs (
+CREATE TABLE logs (
   id BIGSERIAL PRIMARY KEY,
   timestamp TIMESTAMPTZ DEFAULT NOW(),
   action TEXT NOT NULL,
@@ -41,7 +48,7 @@ CREATE TABLE IF NOT EXISTS logs (
 );
 
 -- 5. Create Auth table
-CREATE TABLE IF NOT EXISTS auth (
+CREATE TABLE auth (
   id INTEGER PRIMARY KEY DEFAULT 1,
   passwordHash TEXT NOT NULL,
   securityQuestion TEXT NOT NULL,

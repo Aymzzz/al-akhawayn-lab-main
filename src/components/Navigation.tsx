@@ -60,12 +60,15 @@ const Navigation = () => {
               <button
                 key={item.id}
                 onClick={() => scrollToSection(item.id)}
-                className="text-sm font-medium hover:text-primary transition-colors"
+                className={`text-sm font-medium transition-colors hover:text-primary ${!isScrolled && location.pathname === "/" ? "text-white/90" : "text-foreground"}`}
               >
                 {item.label}
               </button>
             ))}
-            <a href="/login" className="text-sm font-medium hover:text-primary transition-colors flex items-center gap-1">
+            <a
+              href="/login"
+              className={`text-sm font-medium transition-colors hover:text-primary flex items-center gap-1 ${!isScrolled && location.pathname === "/" ? "text-white/90" : "text-foreground"}`}
+            >
               Admin
             </a>
           </div>

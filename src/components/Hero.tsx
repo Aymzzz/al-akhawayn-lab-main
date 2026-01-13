@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button";
+import campusImage from "@/assets/campus.webp";
 
 const Hero = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
-      {/* Background Image - Using public folder for reliable Vercel serving */}
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#0c0c0e] via-[#1a1a1c] to-[#0c0c0e]">
+      {/* Background Image - Using Vite import for guaranteed reliability */}
       <img
-        src="/campus_bg.webp"
+        src={campusImage}
         alt="AUI Campus"
-        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-60"
+        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-60 transition-opacity duration-1000"
+        onLoad={(e) => (e.currentTarget.style.opacity = "0.6")}
       />
 
       {/* Subtle Overlay to ensure text readability */}
