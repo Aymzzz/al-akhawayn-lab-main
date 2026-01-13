@@ -1,16 +1,17 @@
 import { Button } from "@/components/ui/button";
+import campusImage from "@/assets/campus.webp";
 
 const Hero = () => {
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-slate-900">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
       {/* Background Image */}
       <div
         className="absolute inset-0 z-0 select-none pointer-events-none"
         style={{
-          backgroundImage: 'url("/image/DSC09808.webp")',
+          backgroundImage: `url(${campusImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
-          opacity: 0.6
+          opacity: 0.5
         }}
       />
 
