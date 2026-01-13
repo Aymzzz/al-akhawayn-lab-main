@@ -49,7 +49,7 @@ const Navigation = () => {
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }
             }}
-            className="text-lg md:text-xl font-bold hover:text-primary transition-colors"
+            className={`text-lg md:text-xl font-bold hover:text-primary transition-colors ${!isScrolled && location.pathname === "/" ? "text-white" : "text-foreground"}`}
           >
             ILL
           </button>

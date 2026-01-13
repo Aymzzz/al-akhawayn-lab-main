@@ -1,5 +1,5 @@
 -- 1. Create People table
-CREATE TABLE people (
+CREATE TABLE IF NOT EXISTS people (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   role TEXT NOT NULL,
@@ -10,7 +10,7 @@ CREATE TABLE people (
 );
 
 -- 2. Create Events table
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY,
   title TEXT NOT NULL,
   description TEXT NOT NULL,
@@ -21,7 +21,7 @@ CREATE TABLE events (
 );
 
 -- 3. Create Logs table
-CREATE TABLE logs (
+CREATE TABLE IF NOT EXISTS logs (
   id BIGSERIAL PRIMARY KEY,
   timestamp TIMESTAMPTZ DEFAULT NOW(),
   action TEXT NOT NULL,
@@ -30,7 +30,7 @@ CREATE TABLE logs (
 );
 
 -- 4. Create Auth table (Single row for settings)
-CREATE TABLE auth (
+CREATE TABLE IF NOT EXISTS auth (
   id INTEGER PRIMARY KEY DEFAULT 1,
   passwordHash TEXT NOT NULL,
   securityQuestion TEXT NOT NULL,
@@ -38,7 +38,7 @@ CREATE TABLE auth (
   CONSTRAINT single_row CHECK (id = 1)
 );
 
--- 5. Seed initial data
+-- 5. Seed initial data (Using UPSERT to overwrite old passwords)
 INSERT INTO auth (id, passwordHash, securityQuestion, securityAnswerHash)
 VALUES (1, 'admin123', 'What is the name of the lab?', 'AUI Immersive Lab')
 ON CONFLICT (id) DO UPDATE SET
@@ -46,6 +46,8 @@ ON CONFLICT (id) DO UPDATE SET
   securityQuestion = EXCLUDED.securityQuestion,
   securityAnswerHash = EXCLUDED.securityAnswerHash;
 
+-- Clear people before re-seeding to avoid primary key errors
+TRUNCATE TABLE people;
 INSERT INTO people (id, name, role, type, email, "order")
 VALUES 
 ('1', 'Dr. Hassan Darhmaoui', 'Project Initiator', 'core', 'h.darhmaoui@aui.ma', 0),

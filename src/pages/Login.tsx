@@ -20,8 +20,9 @@ const Login = () => {
             const { question } = await dataService.getSecurityQuestion();
             setAuthData({ securityQuestion: question } as any);
         } catch (error: any) {
-            console.error("Failed to load security question");
-            toast.error("Could not load security question. Please check if your Supabase tables are set up and RLS is disabled.");
+            console.error("Failed to load security question:", error);
+            const msg = error.message || "Unknown error";
+            toast.error(`Question Load Failed: ${msg}`);
         }
     };
 
