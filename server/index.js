@@ -215,6 +215,37 @@ app.post('/api/events', authenticateToken, async (req, res) => {
     }
 });
 
+app.get('/api/projects', async (req, res) => {
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+    try {
+        const { data: projects, error } = await supabase.from('projects').select('*').order('id', { ascending: true });
+        if (error) throw error;
+        res.json(projects || []);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+app.post('/api/projects', authenticateToken, async (req, res) => {
+    const projects = req.body;
+    if (!supabase) return res.status(503).json({ message: "Supabase not configured" });
+
+    try {
+        // Clear existing projects and insert new list
+        // Note: In production, individual updates are better, but for this scale, full replace is fine
+        const { error: deleteError } = await supabase.from('projects').delete().neq('id', '0');
+        if (deleteError) throw deleteError;
+
+        const { error: insertError } = await supabase.from('projects').insert(projects);
+        if (insertError) throw insertError;
+
+        await logAction('UPDATE_PROJECTS', `Updated ${projects.length} projects`, req.ip);
+        res.json({ message: "Projects updated" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 export default app;
 
 // Support local development

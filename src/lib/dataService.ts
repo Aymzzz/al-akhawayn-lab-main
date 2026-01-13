@@ -20,6 +20,15 @@ export interface Event {
     schedule?: string;
 }
 
+export interface Project {
+    id: string;
+    title: string;
+    description: string;
+    category: string;
+    students: string[];
+    supervisors: string[];
+}
+
 export interface AuthData {
     // Only used for minimal local types, real auth is server-side
     passwordHash?: string;
@@ -45,7 +54,12 @@ export const dataService = {
     getPeople: async (): Promise<Person[]> => {
         const res = await fetch('/api/people');
         if (!res.ok) throw new Error('Failed to fetch people');
-        return res.json();
+        // Filter out nulls if any, and ensure order exists
+        const data = await res.json();
+        return data.map((p: Person) => ({
+            ...p,
+            order: p.order ?? 999
+        }));
     },
     savePeople: async (people: Person[]) => {
         const res = await fetch('/api/people', {
@@ -70,6 +84,22 @@ export const dataService = {
             body: JSON.stringify(events)
         });
         if (!res.ok) throw new Error('Failed to save events');
+        return res.json();
+    },
+
+    // Projects
+    getProjects: async (): Promise<Project[]> => {
+        const res = await fetch('/api/projects');
+        if (!res.ok) throw new Error('Failed to fetch projects');
+        return res.json();
+    },
+    saveProjects: async (projects: Project[]) => {
+        const res = await fetch('/api/projects', {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(projects)
+        });
+        if (!res.ok) throw new Error('Failed to save projects');
         return res.json();
     },
 

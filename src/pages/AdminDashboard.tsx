@@ -5,10 +5,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { dataService, Person, Event, AuthData, LogEntry } from "@/lib/dataService";
+import { dataService, Person, Event, Project, AuthData, LogEntry } from "@/lib/dataService";
 import { toast } from "sonner";
 import Navigation from "@/components/Navigation";
-import { Plus, Trash2, Edit2, LogOut, ArrowUp, ArrowDown, Settings, User, ShieldCheck, Activity } from "lucide-react";
+import { Plus, Trash2, Edit2, LogOut, ArrowUp, ArrowDown, Settings, User, ShieldCheck, Activity, FolderGit2 } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -57,6 +57,13 @@ const AdminDashboard = () => {
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [eventForm, setEventForm] = useState<Partial<Event>>({ type: 'Technical Workshop' });
 
+    // Project Form State
+    const [projects, setProjects] = useState<Project[]>([]);
+    const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false);
+    const [editingProject, setEditingProject] = useState<Project | null>(null);
+    const [projectForm, setProjectForm] = useState<Partial<Project>>({ students: [], supervisors: [] });
+
+
     useEffect(() => {
         const token = localStorage.getItem("lab_admin_token");
         if (!token) {
@@ -66,14 +73,16 @@ const AdminDashboard = () => {
 
         const loadData = async () => {
             try {
-                const [loadedPeople, loadedEvents, loadedLogs] = await Promise.all([
+                const [loadedPeople, loadedEvents, loadedProjects, loadedLogs] = await Promise.all([
                     dataService.getPeople(),
                     dataService.getEvents(),
+                    dataService.getProjects(),
                     dataService.getLogs()
                 ]);
 
                 setPeople(loadedPeople.sort((a, b) => (a.order ?? 0) - (b.order ?? 0)));
                 setEvents(loadedEvents);
+                setProjects(loadedProjects);
                 setLogs(loadedLogs);
 
                 // Get security question separately
@@ -230,6 +239,59 @@ const AdminDashboard = () => {
         }
     };
 
+    // --- Project CRUD ---
+    const openProjectDialog = (project?: Project) => {
+        if (project) {
+            setEditingProject(project);
+            setProjectForm(project);
+        } else {
+            setEditingProject(null);
+            setProjectForm({ title: '', description: '', category: 'Research', students: [], supervisors: [] });
+        }
+        setIsProjectDialogOpen(true);
+    };
+
+    const saveProject = async () => {
+        if (!projectForm.title || !projectForm.description) {
+            toast.error("Title and Description are required");
+            return;
+        }
+
+        let updatedProjects;
+        if (editingProject) {
+            updatedProjects = projects.map(p => p.id === editingProject.id ? { ...p, ...projectForm } as Project : p);
+        } else {
+            const newProject = { ...projectForm, id: Math.random().toString(36).substr(2, 9) } as Project;
+            updatedProjects = [...projects, newProject];
+        }
+
+        try {
+            await dataService.saveProjects(updatedProjects);
+            setProjects(updatedProjects);
+            toast.success(editingProject ? "Project updated" : "Project added");
+            setIsProjectDialogOpen(false);
+            const loadedLogs = await dataService.getLogs();
+            setLogs(loadedLogs);
+        } catch (e) {
+            toast.error("Failed to save project");
+        }
+    };
+
+    const deleteProject = async (id: string) => {
+        if (confirm("Are you sure you want to remove this project?")) {
+            const updated = projects.filter(p => p.id !== id);
+            try {
+                await dataService.saveProjects(updated);
+                setProjects(updated);
+                toast.success("Project removed");
+                const loadedLogs = await dataService.getLogs();
+                setLogs(loadedLogs);
+            } catch (e) {
+                toast.error("Failed to delete project");
+            }
+        }
+    };
+
     // --- Settings ---
     const updateSettings = async () => {
         const updateData: any = {};
@@ -282,6 +344,9 @@ const AdminDashboard = () => {
                         </TabsTrigger>
                         <TabsTrigger value="events" className="flex items-center gap-2">
                             Show Events
+                        </TabsTrigger>
+                        <TabsTrigger value="projects" className="flex items-center gap-2">
+                            <FolderGit2 className="h-4 w-4" /> Projects
                         </TabsTrigger>
                         <TabsTrigger value="logs" className="flex items-center gap-2">
                             <Activity className="h-4 w-4" /> Logs
@@ -362,6 +427,35 @@ const AdminDashboard = () => {
                                                 <Edit2 className="h-4 w-4" />
                                             </Button>
                                             <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => deleteEvent(event.id)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="projects" className="space-y-4">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-semibold">Research Projects</h2>
+                            <Button size="sm" onClick={() => openProjectDialog()}>
+                                <Plus className="mr-2 h-4 w-4" /> Add Project
+                            </Button>
+                        </div>
+                        <div className="grid gap-4">
+                            {projects.map(project => (
+                                <Card key={project.id} className="hover:shadow-sm transition-shadow">
+                                    <CardContent className="flex items-center justify-between p-4">
+                                        <div>
+                                            <p className="font-semibold">{project.title}</p>
+                                            <p className="text-sm text-muted-foreground">{project.category}</p>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button variant="ghost" size="icon" onClick={() => openProjectDialog(project)}>
+                                                <Edit2 className="h-4 w-4" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => deleteProject(project.id)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
@@ -606,7 +700,62 @@ const AdminDashboard = () => {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-        </div>
+
+            {/* Project Dialog */}
+            <Dialog open={isProjectDialogOpen} onOpenChange={setIsProjectDialogOpen}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle>{editingProject ? 'Edit Project' : 'Add New Project'}</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Title</label>
+                            <Input
+                                value={projectForm.title}
+                                onChange={e => setProjectForm({ ...projectForm, title: e.target.value })}
+                                placeholder="Project Title"
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Description</label>
+                            <Textarea
+                                value={projectForm.description}
+                                onChange={e => setProjectForm({ ...projectForm, description: e.target.value })}
+                                placeholder="Project Description..."
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Category</label>
+                            <Input
+                                value={projectForm.category}
+                                onChange={e => setProjectForm({ ...projectForm, category: e.target.value })}
+                                placeholder="e.g. Education Technology"
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Students (comma separated)</label>
+                            <Input
+                                value={projectForm.students?.join(', ')}
+                                onChange={e => setProjectForm({ ...projectForm, students: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
+                                placeholder="Student 1, Student 2..."
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Supervisors (comma separated)</label>
+                            <Input
+                                value={projectForm.supervisors?.join(', ')}
+                                onChange={e => setProjectForm({ ...projectForm, supervisors: e.target.value.split(',').map(s => s.trim()).filter(s => s) })}
+                                placeholder="Dr. X, Dr. Y..."
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsProjectDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={saveProject}>Save Project</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </div >
     );
 };
 
