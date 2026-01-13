@@ -1,22 +1,17 @@
 import { Button } from "@/components/ui/button";
-import campusImage from "@/assets/campus.webp";
 
 const Hero = () => {
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
-      {/* Background Image */}
-      <div
-        className="absolute inset-0 z-0 select-none pointer-events-none"
-        style={{
-          backgroundImage: `url(${campusImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          opacity: 0.5
-        }}
+      {/* Background Image using standard img tag for highest compatibility */}
+      <img
+        src="/campus.webp"
+        alt="AUI Campus"
+        className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none opacity-60"
       />
 
-      {/* Dark Overlay Gradient */}
-      <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-transparent to-black/60 z-[1]"></div>
+      {/* Subtle Overlay to ensure text readability */}
+      <div className="absolute inset-0 bg-black/30 z-[1]" />
 
       <div className="container mx-auto px-4 py-20 relative z-10">
         <div className="max-w-4xl mx-auto text-center space-y-8">
