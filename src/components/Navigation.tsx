@@ -71,6 +71,12 @@ const Navigation = () => {
             >
               Admin
             </a>
+            <Button
+              onClick={() => navigate("/demo")}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              Launch Platform
+            </Button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -97,6 +103,15 @@ const Navigation = () => {
                   {item.label}
                 </button>
               ))}
+              <Button
+                onClick={() => {
+                  navigate("/demo");
+                  setIsMobileMenuOpen(false);
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                Launch Platform
+              </Button>
             </div>
           </div>
         )}
