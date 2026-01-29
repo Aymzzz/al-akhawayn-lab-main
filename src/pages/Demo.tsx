@@ -13,6 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input"; // Assuming you have an Input component or use primitive input
 
 // --- Types ---
 type Role = "landing" | "professor" | "student";
@@ -52,6 +55,10 @@ interface AssignmentSettings {
     questions: QuizQuestion[];
     instructions: string; // Agent instructions
     qrCode?: string; // Classroom QR Code
+    useContext?: boolean; // Enable AI context
+    contextFile?: string; // Mocked file name
+    type: 'view' | 'practice' | 'exam';
+    enableAntiCheat: boolean;
 }
 
 // --- Mock Data ---
@@ -86,9 +93,12 @@ const Demo = () => {
         questions: [],
         instructions: "You are a helpful teaching assistant. Briefly explain concepts.",
 
-        qrCode: "AUI-LAB-LIVE"
+        qrCode: "AUI-LAB-LIVE",
+        useContext: false,
+        type: 'practice',
+        enableAntiCheat: false
     });
-    const [files, setFiles] = useState<File[]>([]);
+    const [files, setFiles] = useState<File[]>([]); // Context files
 
     // Student State
     const [studentMode, setStudentMode] = useState<StudentMode>("dashboard");
@@ -103,6 +113,7 @@ const Demo = () => {
     const [tempDesc, setTempDesc] = useState("");
     const [isRecording, setIsRecording] = useState(false);
     const [hasAudio, setHasAudio] = useState(false);
+    const [isAnnotationMode, setIsAnnotationMode] = useState(false); // Toggle for annotation creation
 
     // Chat State
     const [chatMessages, setChatMessages] = useState<{ role: 'ai' | 'user', text: string }[]>([]);
@@ -125,8 +136,10 @@ const Demo = () => {
     // --- Handlers ---
 
     const handleModelClick = (event: React.MouseEvent<HTMLElement>) => {
-        // Professor Studio: Add Hotspot on click
+        // Professor Studio: Add Hotspot on click (ONLY if Annotation Mode is ON)
         if (role === "professor" && profMode === "studio") {
+            if (!isAnnotationMode) return;
+
             const { clientX, clientY } = event;
             if (modelViewerRef.current) {
                 const hit = modelViewerRef.current.positionAndNormalFromPoint(clientX, clientY);
@@ -385,8 +398,13 @@ const Demo = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 pt-20 pb-8 px-4 font-sans">
-            <div className="max-w-[1600px] mx-auto h-[85vh] flex flex-col">
+        <div className="h-screen flex flex-col bg-slate-50 font-sans overflow-hidden">
+            {/* Header Section (if any) or just padding top if needed, 
+                 but for h-screen we usually want explicit header + flex-1 content. 
+                 The original had pt-20, let's make a proper header area or keep spacing 
+                 but ensuring the flex container handles the rest.
+             */}
+            <div className={`flex-1 flex flex-col max-w-[1600px] mx-auto w-full ${role === 'landing' ? 'overflow-y-auto' : 'overflow-hidden'} pt-4 pb-4 px-4`}>
 
                 {/* === LANDING === */}
                 {role === "landing" && (
@@ -596,94 +614,227 @@ const Demo = () => {
 
                             {/* STUDIO VIEW (Original + Quiz Builder) */}
                             {profMode === "studio" && (
-                                <div className="flex-1 flex h-full">
-                                    <div className="flex-1 relative">
+                                <div className="flex-1 flex overflow-hidden h-full">
+                                    <div className="flex-1 relative bg-slate-100">
                                         {renderModelViewer(true)}
                                     </div>
-                                    <div className="w-96 border-l border-slate-100 flex flex-col bg-slate-50">
-                                        <Tabs defaultValue="annotate" className="flex-1 flex flex-col">
-                                            <div className="p-2 border-b bg-white">
-                                                <TabsList className="w-full grid grid-cols-3">
+
+                                    {/* Sidebar */}
+                                    <div className="w-96 flex flex-col bg-white border-l shadow-xl z-10 h-full min-h-0">
+                                        <Tabs defaultValue="annotate" className="flex-1 flex flex-col min-h-0">
+                                            <div className="p-2 border-b bg-white shrink-0">
+                                                <TabsList className="w-full grid grid-cols-4">
                                                     <TabsTrigger value="annotate">Annotate</TabsTrigger>
+                                                    <TabsTrigger value="context">Config</TabsTrigger>
                                                     <TabsTrigger value="quiz">Quiz</TabsTrigger>
                                                     <TabsTrigger value="qr">Deploy</TabsTrigger>
                                                 </TabsList>
                                             </div>
 
-                                            <TabsContent value="annotate" className="flex-1 flex flex-col p-4 space-y-4 data-[state=inactive]:hidden">
-                                                <div className="space-y-2">
-                                                    <h3 className="font-bold text-sm">Agent Settings</h3>
-                                                    <Label className="text-xs text-slate-500">Agent Persona Prompt</Label>
-                                                    <textarea
-                                                        className="w-full text-xs border rounded p-2 h-20"
-                                                        value={settings.instructions}
-                                                        onChange={(e) => setSettings({ ...settings, instructions: e.target.value })}
-                                                    />
+                                            <TabsContent value="annotate" className="flex-1 flex flex-col p-4 space-y-4 data-[state=inactive]:hidden overflow-y-auto min-h-0 pb-32">
+                                                <div className="flex items-center justify-between p-3 border rounded bg-slate-50">
+                                                    <div>
+                                                        <Label className="font-bold">Annotation Mode</Label>
+                                                        <p className="text-xs text-slate-500">Enable to place hotspots on the model.</p>
+                                                    </div>
+                                                    <Switch checked={isAnnotationMode} onCheckedChange={setIsAnnotationMode} />
                                                 </div>
-                                                {/* Existing Annotations List */}
                                                 <div className="flex-1 overflow-y-auto space-y-2">
-                                                    {hotspots.map((h, i) => (
-                                                        <div key={h.id} className="bg-white p-3 rounded border flex justify-between">
-                                                            <span className="font-medium text-sm">{i + 1}. {h.label}</span>
-                                                            <Trash2 className="w-4 h-4 cursor-pointer text-slate-300 hover:text-red-500" onClick={() => setHotspots(hotspots.filter(x => x.id !== h.id))} />
+                                                    <h3 className="font-bold text-sm">Current Annotations</h3>
+                                                    {hotspots.length === 0 ? (
+                                                        <div className="text-center py-6 text-slate-400 border-2 border-dashed rounded-lg">
+                                                            <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                                            <p className="text-sm">No annotations yet.</p>
+                                                            <p className="text-xs mt-1">Toggle Mode & Click model to add.</p>
                                                         </div>
-                                                    ))}
+                                                    ) : (
+                                                        hotspots.map((h, i) => (
+                                                            <div key={h.id} className="bg-white p-3 rounded border flex justify-between items-center group">
+                                                                <span className="font-medium text-sm truncate max-w-[150px]">{i + 1}. {h.label}</span>
+                                                                <Trash2 className="w-4 h-4 cursor-pointer text-slate-300 hover:text-red-500" onClick={() => setHotspots(hotspots.filter(x => x.id !== h.id))} />
+                                                            </div>
+                                                        ))
+                                                    )}
                                                 </div>
                                             </TabsContent>
 
-                                            <TabsContent value="quiz" className="flex-1 flex flex-col p-4 space-y-4 data-[state=inactive]:hidden">
-                                                <div className="flex items-center justify-between p-3 border rounded bg-slate-50">
+                                            <TabsContent value="quiz" className="flex-1 flex flex-col p-4 space-y-4 data-[state=inactive]:hidden min-h-0 overflow-hidden">
+                                                {settings.type === 'view' ? (
+                                                    <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-slate-400 border-2 border-dashed rounded-xl">
+                                                        <MonitorPlay className="w-12 h-12 mb-3 opacity-20" />
+                                                        <h3 className="font-bold text-slate-600">Quiz Tools Disabled</h3>
+                                                        <p className="text-sm mt-1 mb-4">You are currently in "View Only" mode.</p>
+                                                        <Button variant="outline" size="sm" onClick={() => {
+                                                            const tabs = document.querySelector('[role="tablist"]');
+                                                            const configTab = tabs?.querySelector('[value="context"]') as HTMLElement;
+                                                            configTab?.click();
+                                                        }}>
+                                                            Go to Config & Enable Exam
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        {!settings.hasQuiz && (
+                                                            <div className="bg-blue-50 text-blue-800 p-3 rounded text-xs flex items-center gap-2 border border-blue-200">
+                                                                <MessageSquare className="w-4 h-4" />
+                                                                Currently in Practice mode (Ungraded). Switch to 'Exam' in Config to enable formal grading.
+                                                            </div>
+                                                        )}
+
+                                                        <div className="flex-1 overflow-y-auto p-1 space-y-3 min-h-0">
+                                                            <div className="space-y-3 p-3 bg-white rounded border">
+                                                                <Label>Question Type</Label>
+                                                                <Select value={newQuestionType} onValueChange={(v: any) => setNewQuestionType(v)}>
+                                                                    <SelectTrigger>
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        <SelectItem value="mcq">Multiple Choice (MCQ)</SelectItem>
+                                                                        <SelectItem value="spatial">Spatial Identification</SelectItem>
+                                                                        <SelectItem value="essay">Open Essay</SelectItem>
+                                                                    </SelectContent>
+                                                                </Select>
+
+                                                                <Label>Prompt</Label>
+                                                                <input
+                                                                    className="w-full border p-2 rounded text-sm"
+                                                                    placeholder="Question text..."
+                                                                    value={newQuestionPrompt}
+                                                                    onChange={(e) => setNewQuestionPrompt(e.target.value)}
+                                                                />
+
+                                                                {newQuestionType === 'mcq' && (
+                                                                    <div className="space-y-3 pt-2">
+                                                                        <Label>Correct Answer & Options</Label>
+                                                                        <RadioGroup value={newQuestionCorrect} onValueChange={setNewQuestionCorrect} className="space-y-2">
+                                                                            {['A', 'B', 'C', 'D'].map((opt) => (
+                                                                                <div key={opt} className="flex items-center space-x-2">
+                                                                                    <RadioGroupItem value={`Option ${opt}`} id={`opt-${opt}`} />
+                                                                                    <Input
+                                                                                        placeholder={`Option ${opt}`}
+                                                                                        className="h-8 text-sm"
+                                                                                        defaultValue={`Option ${opt}`}
+                                                                                    />
+                                                                                </div>
+                                                                            ))}
+                                                                        </RadioGroup>
+                                                                    </div>
+                                                                )}
+
+                                                                {newQuestionType === 'spatial' && (
+                                                                    <div className="space-y-1">
+                                                                        <Label>Focus Check</Label>
+                                                                        <div className="text-xs text-slate-500">Correct Answer will be the Hotspot ID clicked by student.</div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Questions List */}
+                                                            <div className="space-y-2 pb-4">
+                                                                <Label className="text-xs font-bold uppercase text-slate-400">Questions Added ({settings.questions.length})</Label>
+                                                                {settings.questions.length === 0 && <p className="text-center text-sm text-slate-400 py-2">No questions yet.</p>}
+                                                                {settings.questions.map((q, i) => (
+                                                                    <div key={q.id} className="bg-white p-3 rounded border text-sm relative group">
+                                                                        <div className="font-bold text-slate-700">Q{i + 1} ({q.type})</div>
+                                                                        <div className="truncate pr-4">{q.prompt}</div>
+                                                                        <Trash2 className="w-4 h-4 absolute top-3 right-3 text-slate-300 hover:text-red-500 cursor-pointer"
+                                                                            onClick={() => setSettings({ ...settings, questions: settings.questions.filter(qt => qt.id !== q.id) })}
+                                                                        />
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Sticky Footer */}
+                                                        <div className="pt-2 border-t mt-auto">
+                                                            <Button className="w-full" onClick={addQuizQuestion}>
+                                                                <Plus className="w-4 h-4 mr-2" /> Add Question to Quiz
+                                                            </Button>
+                                                        </div>
+
+
+                                                    </>
+                                                )}
+                                            </TabsContent>
+
+                                            <TabsContent value="context" className="flex-1 p-4 space-y-6 data-[state=inactive]:hidden overflow-y-auto min-h-0 pb-32">
+
+                                                {/* Assignment Type Selection */}
+                                                <div className="space-y-3">
+                                                    <Label className="font-bold text-base">Assignment Mode</Label>
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        <div
+                                                            onClick={() => setSettings({ ...settings, type: 'view', hasQuiz: false })}
+                                                            className={`p-3 border rounded-lg cursor-pointer transition-all ${settings.type === 'view' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'hover:border-slate-300 bg-white'}`}
+                                                        >
+                                                            <div className="font-bold text-sm mb-1">View Only</div>
+                                                            <p className="text-[10px] text-slate-500 leading-tight">Simple visualization. No quiz or AI.</p>
+                                                        </div>
+                                                        <div
+                                                            onClick={() => setSettings({ ...settings, type: 'practice', hasQuiz: false, allowAI: true })}
+                                                            className={`p-3 border rounded-lg cursor-pointer transition-all ${settings.type === 'practice' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'hover:border-slate-300 bg-white'}`}
+                                                        >
+                                                            <div className="font-bold text-sm mb-1">Practice</div>
+                                                            <p className="text-[10px] text-slate-500 leading-tight">Ungraded exploration with AI assistant.</p>
+                                                        </div>
+                                                        <div
+                                                            onClick={() => setSettings({ ...settings, type: 'exam', hasQuiz: true })}
+                                                            className={`p-3 border rounded-lg cursor-pointer transition-all ${settings.type === 'exam' ? 'border-blue-500 bg-blue-50 ring-1 ring-blue-500' : 'hover:border-slate-300 bg-white'}`}
+                                                        >
+                                                            <div className="font-bold text-sm mb-1">Exam</div>
+                                                            <p className="text-[10px] text-slate-500 leading-tight">Graded quiz with security options.</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Security & AI Settings */}
+                                                <div className="space-y-4 border-t pt-4">
+                                                    <h3 className="font-bold text-sm">Session Control</h3>
+
+                                                    <div className="flex items-center justify-between">
+                                                        <div>
+                                                            <Label>Enable AI Assistant</Label>
+                                                            <p className="text-xs text-slate-500">Allow students to chat with the agent.</p>
+                                                        </div>
+                                                        <Switch checked={settings.allowAI} onCheckedChange={(v) => setSettings({ ...settings, allowAI: v })} />
+                                                    </div>
+
+                                                    {settings.type === 'exam' && (
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <Label>Anti-Cheat Monitor</Label>
+                                                                <p className="text-xs text-slate-500 flex items-center gap-1"><ShieldAlert className="w-3 h-3" /> Track focus & tab switching.</p>
+                                                            </div>
+                                                            <Switch checked={settings.enableAntiCheat} onCheckedChange={(v) => setSettings({ ...settings, enableAntiCheat: v })} />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Lecture Context (Moved from old Context tab) */}
+                                                <div className="border-t pt-4 space-y-4">
                                                     <div>
-                                                        <Label className="font-bold">Assignment Mode</Label>
-                                                        <p className="text-xs text-slate-500">Enable for Graded Assessment. Disable for Visualization Only.</p>
-                                                    </div>
-                                                    <Switch checked={settings.hasQuiz} onCheckedChange={(v) => setSettings({ ...settings, hasQuiz: v })} />
-                                                </div>
-
-                                                <h3 className="font-bold text-sm">Assessment Review</h3>
-                                                <div className="space-y-3 p-3 bg-white rounded border">
-                                                    <Label>Question Type</Label>
-                                                    <div className="flex gap-1">
-                                                        <Button size="sm" variant={newQuestionType === 'mcq' ? 'default' : 'outline'} onClick={() => setNewQuestionType('mcq')} className="flex-1 text-xs">MCQ</Button>
-                                                        <Button size="sm" variant={newQuestionType === 'spatial' ? 'default' : 'outline'} onClick={() => setNewQuestionType('spatial')} className="flex-1 text-xs">Spatial</Button>
-                                                        <Button size="sm" variant={newQuestionType === 'essay' ? 'default' : 'outline'} onClick={() => setNewQuestionType('essay')} className="flex-1 text-xs">Essay</Button>
+                                                        <Label className="font-bold">Lecture Context</Label>
+                                                        <p className="text-xs text-slate-500 mb-2">Upload slides for AI reference.</p>
+                                                        <div className="border-2 border-dashed border-slate-300 p-4 text-center rounded-xl bg-white hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => toast.success("File uploaded!", { duration: 1500 })}>
+                                                            <Upload className="w-6 h-6 mx-auto text-slate-400 mb-1" />
+                                                            <span className="text-xs font-medium text-slate-600">Drop PDF / PPTX</span>
+                                                        </div>
                                                     </div>
 
-                                                    <Label>Prompt</Label>
-                                                    <input
-                                                        className="w-full border p-2 rounded text-sm"
-                                                        placeholder="Question text..."
-                                                        value={newQuestionPrompt}
-                                                        onChange={(e) => setNewQuestionPrompt(e.target.value)}
-                                                    />
+                                                    <div className="space-y-2">
+                                                        <Label className="text-sm font-semibold">AI Instructions</Label>
+                                                        <textarea
+                                                            className="w-full text-xs border rounded p-2 h-20"
+                                                            placeholder="Instructions for the AI..."
+                                                            value={settings.instructions}
+                                                            onChange={(e) => setSettings({ ...settings, instructions: e.target.value })}
+                                                        />
+                                                    </div>
 
-                                                    {newQuestionType === 'mcq' && (
-                                                        <div className="space-y-1">
-                                                            <Label>Correct Answer (A, B, or C)</Label>
-                                                            <input className="w-full border p-2 rounded text-sm" placeholder="e.g. Option A" value={newQuestionCorrect} onChange={e => setNewQuestionCorrect(e.target.value)} />
-                                                        </div>
-                                                    )}
-
-                                                    {newQuestionType === 'spatial' && (
-                                                        <div className="space-y-1">
-                                                            <Label>Focus Check</Label>
-                                                            <div className="text-xs text-slate-500">Correct Answer will be the Hotspot ID clicked by student.</div>
-                                                        </div>
-                                                    )}
-
-                                                    <Button className="w-full" size="sm" onClick={addQuizQuestion}>Add Question</Button>
-                                                </div>
-
-                                                <div className="flex-1 overflow-y-auto space-y-2">
-                                                    {settings.questions.map((q, i) => (
-                                                        <div key={q.id} className="bg-white p-3 rounded border text-sm relative group">
-                                                            <div className="font-bold text-slate-700">Q{i + 1} ({q.type})</div>
-                                                            <div>{q.prompt}</div>
-                                                            <Trash2 className="w-4 h-4 absolute top-3 right-3 text-slate-300 hover:text-red-500 cursor-pointer opacity-0 group-hover:opacity-100"
-                                                                onClick={() => setSettings({ ...settings, questions: settings.questions.filter(qt => qt.id !== q.id) })}
-                                                            />
-                                                        </div>
-                                                    ))}
+                                                    <div className="flex items-center justify-between">
+                                                        <Label className="text-xs">Prioritize Context for AI</Label>
+                                                        <Switch checked={settings.useContext} onCheckedChange={(v) => setSettings({ ...settings, useContext: v })} />
+                                                    </div>
                                                 </div>
                                             </TabsContent>
 
@@ -751,18 +902,25 @@ const Demo = () => {
                                     <div className="lg:col-span-2 space-y-6">
                                         <h3 className="font-bold text-lg flex items-center gap-2"><BookOpen className="w-5 h-5" /> Active Assignments</h3>
                                         {[1].map(i => (
-                                            <div key={i} className="border rounded-lg p-6 hover:border-emerald-500 transition-colors cursor-pointer group" onClick={() => setStudentMode("assignment")}>
+                                            <div key={i} className={`border rounded-lg p-6 hover:shadow-lg transition-all cursor-pointer group bg-white ${settings.type === 'exam' ? 'border-l-4 border-l-red-500' : settings.type === 'practice' ? 'border-l-4 border-l-emerald-500' : 'border-l-4 border-l-blue-500'}`} onClick={() => setStudentMode("assignment")}>
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div>
-                                                        <Badge className="mb-2">CSC 3330</Badge>
-                                                        <h4 className="text-xl font-bold group-hover:text-emerald-700">Shuttle Systems Components</h4>
+                                                        <div className="flex gap-2 mb-2">
+                                                            <Badge variant="secondary">CSC 3330</Badge>
+                                                            {settings.type === 'exam' && <Badge variant="destructive">Graded Amount</Badge>}
+                                                            {settings.type === 'practice' && <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">Practice</Badge>}
+                                                            {settings.type === 'view' && <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">View Only</Badge>}
+                                                        </div>
+                                                        <h4 className="text-xl font-bold group-hover:text-blue-700">Shuttle Systems Components</h4>
                                                     </div>
-                                                    <Button onClick={(e) => { e.stopPropagation(); setStudentMode("assignment"); }}>Launch Lab</Button>
+                                                    <Button onClick={(e) => { e.stopPropagation(); setStudentMode("assignment"); }}>
+                                                        {settings.type === 'view' ? 'Open Viewer' : 'Launch Lab'}
+                                                    </Button>
                                                 </div>
                                                 <div className="flex gap-4 text-sm text-slate-500">
-                                                    <span className="flex items-center gap-1"><BrainCircuit className="w-4 h-4" /> AI Allowed</span>
-                                                    <span className="flex items-center gap-1"><Target className="w-4 h-4" /> Spatial Quiz</span>
-                                                    <span className="text-orange-500 font-medium">Due Tomorrow</span>
+                                                    {settings.allowAI && <span className="flex items-center gap-1"><BrainCircuit className="w-4 h-4" /> AI Allowed</span>}
+                                                    {settings.hasQuiz && <span className="flex items-center gap-1"><Target className="w-4 h-4" /> Quiz Included</span>}
+                                                    {settings.type === 'exam' && <span className="text-orange-500 font-medium">Due Tomorrow</span>}
                                                 </div>
                                             </div>
                                         ))}
@@ -795,138 +953,152 @@ const Demo = () => {
                                 <div className="flex-1 relative rounded-xl overflow-hidden shadow-xl border bg-black">
                                     {renderModelViewer(false, true)}
 
-                                    {/* Anti-Cheat Warning */}
-                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg backdrop-blur flex items-center gap-2">
-                                        <ShieldAlert className="w-3 h-3" /> Anti-Cheat Active: Tab switching monitored
+                                    {/* Student "Back to Dashboard" Overlay */}
+                                    <div className="absolute top-4 left-4 z-50">
+                                        <Button variant="secondary" size="sm" onClick={() => setStudentMode("dashboard")} className="bg-white/90 backdrop-blur shadow-sm hover:bg-white">
+                                            <ArrowLeft className="w-4 h-4 mr-2" /> Back to Dashboard
+                                        </Button>
                                     </div>
+
+                                    {/* Anti-Cheat Warning */}
+                                    {settings.type === 'exam' && settings.enableAntiCheat && (
+                                        <div className="absolute top-4 left-1/2 -translate-x-1/2 bg-red-500/90 text-white px-4 py-1 rounded-full text-xs font-bold shadow-lg backdrop-blur flex items-center gap-2 animate-pulse">
+                                            <ShieldAlert className="w-3 h-3" /> Anti-Cheat Active: Focus Monitored
+                                        </div>
+                                    )}
                                 </div>
 
-                                <div className="w-96 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden">
-                                    <Tabs defaultValue="quiz" className="flex-1 flex flex-col">
-                                        <div className="p-2 border-b bg-slate-50">
-                                            <TabsList className="w-full">
-                                                <TabsTrigger value="quiz" className="flex-1">Quiz</TabsTrigger>
-                                                <TabsTrigger value="ai" className="flex-1">AI Assistant</TabsTrigger>
-                                            </TabsList>
-                                        </div>
+                                {/* Sidebar - Only visible if NOT View Only */}
+                                {settings.type !== 'view' && (
+                                    <div className="w-96 flex flex-col bg-white rounded-xl border shadow-sm overflow-hidden h-full">
+                                        <Tabs defaultValue="quiz" className="flex-1 flex flex-col min-h-0">
+                                            <div className="p-2 border-b bg-slate-50">
+                                                <TabsList className="w-full">
+                                                    <TabsTrigger value="quiz" className="flex-1">Quiz</TabsTrigger>
+                                                    {settings.allowAI && <TabsTrigger value="ai" className="flex-1">AI Assistant</TabsTrigger>}
+                                                </TabsList>
+                                            </div>
 
-                                        <TabsContent value="quiz" className="flex-1 p-6 space-y-6 overflow-y-auto">
-                                            {settings.hasQuiz ? (
-                                                <div className="space-y-4">
-                                                    <h3 className="font-bold text-lg">Question {activeQuizQuestion + 1} of {settings.questions.length || 1}</h3>
-                                                    <p className="text-slate-700 text-lg">
-                                                        {settings.questions[activeQuizQuestion]?.prompt || "No questions assigned."}
-                                                    </p>
+                                            <TabsContent value="quiz" className="flex-1 p-6 space-y-6 overflow-y-auto min-h-0">
+                                                {settings.hasQuiz ? (
+                                                    <div className="space-y-4">
+                                                        <h3 className="font-bold text-lg">Question {activeQuizQuestion + 1} of {settings.questions.length || 1}</h3>
+                                                        <p className="text-slate-700 text-lg">
+                                                            {settings.questions[activeQuizQuestion]?.prompt || "No questions assigned."}
+                                                        </p>
 
-                                                    {/* Dynamic Input based on Question Type */}
-                                                    <div className="p-6 bg-slate-50 rounded-xl border space-y-4">
+                                                        {/* Dynamic Input based on Question Type */}
+                                                        <div className="p-6 bg-slate-50 rounded-xl border space-y-4">
 
-                                                        {settings.questions[activeQuizQuestion]?.type === 'mcq' && settings.questions[activeQuizQuestion].options?.map((opt, i) => (
-                                                            <div key={i} className="flex items-center space-x-2 p-3 rounded hover:bg-white border border-transparent hover:border-slate-200 cursor-pointer" onClick={() => {
-                                                                const newAnswers = { ...studentAnswers, [settings.questions[activeQuizQuestion].id]: opt };
-                                                                setStudentAnswers(newAnswers);
-                                                            }}>
-                                                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${studentAnswers[settings.questions[activeQuizQuestion].id] === opt ? 'border-emerald-500 bg-emerald-500' : 'border-slate-400'}`}>
-                                                                    {studentAnswers[settings.questions[activeQuizQuestion].id] === opt && <Check className="w-3 h-3 text-white" />}
-                                                                </div>
-                                                                <span>{opt}</span>
-                                                            </div>
-                                                        ))}
-
-                                                        {settings.questions[activeQuizQuestion]?.type === 'essay' && (
-                                                            <textarea
-                                                                className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
-                                                                placeholder="Type your answer here..."
-                                                                value={studentAnswers[settings.questions[activeQuizQuestion].id] || ""}
-                                                                onChange={e => setStudentAnswers({ ...studentAnswers, [settings.questions[activeQuizQuestion].id]: e.target.value })}
-                                                            />
-                                                        )}
-
-                                                        {(settings.questions[activeQuizQuestion]?.type === 'spatial' || !settings.questions.length) && (
-                                                            <div className="text-center py-8 text-slate-500">
-                                                                <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                                                                {studentAnswers[settings.questions[activeQuizQuestion]?.id] ? (
-                                                                    <div className="font-bold text-emerald-600 flex items-center justify-center gap-2">
-                                                                        <Check className="w-5 h-5" /> Location Recorded
+                                                            {settings.questions[activeQuizQuestion]?.type === 'mcq' && settings.questions[activeQuizQuestion].options?.map((opt, i) => (
+                                                                <div key={i} className="flex items-center space-x-2 p-3 rounded hover:bg-white border border-transparent hover:border-slate-200 cursor-pointer" onClick={() => {
+                                                                    const newAnswers = { ...studentAnswers, [settings.questions[activeQuizQuestion].id]: opt };
+                                                                    setStudentAnswers(newAnswers);
+                                                                }}>
+                                                                    <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${studentAnswers[settings.questions[activeQuizQuestion].id] === opt ? 'border-emerald-500 bg-emerald-500' : 'border-slate-400'}`}>
+                                                                        {studentAnswers[settings.questions[activeQuizQuestion].id] === opt && <Check className="w-3 h-3 text-white" />}
                                                                     </div>
-                                                                ) : (
-                                                                    "Click the component on the 3D model to answer."
-                                                                )}
-                                                            </div>
-                                                        )}
+                                                                    <span>{opt}</span>
+                                                                </div>
+                                                            ))}
 
-                                                    </div>
+                                                            {settings.questions[activeQuizQuestion]?.type === 'essay' && (
+                                                                <textarea
+                                                                    className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none h-32 resize-none"
+                                                                    placeholder="Type your answer here..."
+                                                                    value={studentAnswers[settings.questions[activeQuizQuestion].id] || ""}
+                                                                    onChange={e => setStudentAnswers({ ...studentAnswers, [settings.questions[activeQuizQuestion].id]: e.target.value })}
+                                                                />
+                                                            )}
 
-                                                    <div className="flex justify-between pt-4">
-                                                        <Button variant="outline" disabled={activeQuizQuestion === 0} onClick={() => setActiveQuizQuestion(Math.max(0, activeQuizQuestion - 1))}>Prev</Button>
-                                                        <Button onClick={() => {
-                                                            if (activeQuizQuestion < (settings.questions.length - 1)) {
-                                                                setActiveQuizQuestion(activeQuizQuestion + 1);
-                                                            } else {
-                                                                setStudentMode("dashboard");
-                                                                // Verify submissions
-                                                                const submission: StudentSubmission = {
-                                                                    studentId: "student-1",
-                                                                    studentName: "Current Student",
-                                                                    answers: studentAnswers,
-                                                                    timestamp: new Date()
-                                                                };
-                                                                // Mock adding to global submissions
-                                                                MOCK_SUBMISSIONS.unshift({
-                                                                    id: Date.now().toString(),
-                                                                    student: submission.studentName,
-                                                                    grade: "Pending",
-                                                                    status: "Needs Grading",
-                                                                    flagged: false
-                                                                });
-                                                                toast.success("Assignment Submitted successfully!");
-                                                            }
-                                                        }}>
-                                                            {activeQuizQuestion < (settings.questions.length - 1) ? "Next" : "Submit Assignment"}
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            ) : (
-                                                <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 space-y-4">
-                                                    <MonitorPlay className="w-16 h-16 opacity-20" />
-                                                    <div>
-                                                        <h3 className="text-lg font-bold text-slate-700">Exploration Mode</h3>
-                                                        <p className="max-w-xs mx-auto">This assignment is for study and verification only. No quiz is required.</p>
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </TabsContent>
+                                                            {(settings.questions[activeQuizQuestion]?.type === 'spatial' || !settings.questions.length) && (
+                                                                <div className="text-center py-8 text-slate-500">
+                                                                    <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                                                    {studentAnswers[settings.questions[activeQuizQuestion]?.id] ? (
+                                                                        <div className="font-bold text-emerald-600 flex items-center justify-center gap-2">
+                                                                            <Check className="w-5 h-5" /> Location Recorded
+                                                                        </div>
+                                                                    ) : (
+                                                                        "Click the component on the 3D model to answer."
+                                                                    )}
+                                                                </div>
+                                                            )}
 
-                                        <TabsContent value="ai" className="flex-1 flex flex-col p-0">
-                                            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
-                                                {chatMessages.map((msg, i) => (
-                                                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                                                        <div className={`max-w-[90%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border text-slate-800'
-                                                            }`}>
-                                                            {msg.text}
+                                                        </div>
+
+                                                        <div className="flex justify-between pt-4">
+                                                            <Button variant="outline" disabled={activeQuizQuestion === 0} onClick={() => setActiveQuizQuestion(Math.max(0, activeQuizQuestion - 1))}>Prev</Button>
+                                                            <Button onClick={() => {
+                                                                if (activeQuizQuestion < (settings.questions.length - 1)) {
+                                                                    setActiveQuizQuestion(activeQuizQuestion + 1);
+                                                                } else {
+                                                                    setStudentMode("dashboard");
+                                                                    // Verify submissions
+                                                                    const submission: StudentSubmission = {
+                                                                        studentId: "student-1",
+                                                                        studentName: "Current Student",
+                                                                        answers: studentAnswers,
+                                                                        timestamp: new Date()
+                                                                    };
+                                                                    // Mock adding to global submissions
+                                                                    MOCK_SUBMISSIONS.unshift({
+                                                                        id: Date.now().toString(),
+                                                                        student: submission.studentName,
+                                                                        grade: "Pending",
+                                                                        status: "Needs Grading",
+                                                                        flagged: false
+                                                                    });
+                                                                    toast.success("Assignment Submitted successfully!");
+                                                                }
+                                                            }}>
+                                                                {activeQuizQuestion < (settings.questions.length - 1) ? "Next" : "Submit Assignment"}
+                                                            </Button>
                                                         </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                            <div className="p-3 border-t">
-                                                <div className="flex gap-2">
-                                                    <input
-                                                        className="flex-1 bg-slate-100 border-0 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                                                        placeholder={settings.allowAI ? "Ask a question..." : "AI disabled"}
-                                                        onPaste={(e) => { e.preventDefault(); toast.error("Copy/Paste disabled for Academic Integrity"); }}
-                                                        value={chatInput}
-                                                        onChange={(e) => setChatInput(e.target.value)}
-                                                        onKeyDown={(e) => e.key === 'Enter' && handleChat()}
-                                                        disabled={!settings.allowAI}
-                                                    />
-                                                    <Button size="icon" className="rounded-full" onClick={handleChat} disabled={!settings.allowAI}>
-                                                        <Send className="w-4 h-4" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </TabsContent>
-                                    </Tabs>
-                                </div>
+                                                ) : (
+                                                    <div className="h-full flex flex-col items-center justify-center text-center text-slate-500 space-y-4">
+                                                        <MonitorPlay className="w-16 h-16 opacity-20" />
+                                                        <div>
+                                                            <h3 className="text-lg font-bold text-slate-700">Self-Guided Operation</h3>
+                                                            <p className="max-w-xs mx-auto">No formal quiz. Practice scanning and identifying components using the AI.</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </TabsContent>
+
+                                            {settings.allowAI && (
+                                                <TabsContent value="ai" className="flex-1 flex flex-col p-0 min-h-0">
+                                                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50">
+                                                        {chatMessages.map((msg, i) => (
+                                                            <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                                                                <div className={`max-w-[90%] p-3 rounded-2xl text-sm ${msg.role === 'user' ? 'bg-blue-600 text-white' : 'bg-white border text-slate-800'
+                                                                    }`}>
+                                                                    {msg.text}
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                    <div className="p-3 border-t">
+                                                        <div className="flex gap-2">
+                                                            <input
+                                                                className="flex-1 bg-slate-100 border-0 rounded-full px-4 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none"
+                                                                placeholder={settings.allowAI ? "Ask a question..." : "AI disabled"}
+                                                                onPaste={(e) => { e.preventDefault(); toast.error("Copy/Paste disabled for Academic Integrity"); }}
+                                                                value={chatInput}
+                                                                onChange={(e) => setChatInput(e.target.value)}
+                                                                onKeyDown={(e) => e.key === 'Enter' && handleChat()}
+                                                                disabled={!settings.allowAI}
+                                                            />
+                                                            <Button size="icon" className="rounded-full" onClick={handleChat} disabled={!settings.allowAI}>
+                                                                <Send className="w-4 h-4" />
+                                                            </Button>
+                                                        </div>
+                                                    </div>
+                                                </TabsContent>
+                                            )}
+                                        </Tabs>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
